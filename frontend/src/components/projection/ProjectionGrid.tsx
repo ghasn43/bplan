@@ -1,0 +1,246 @@
+import { useState } from 'react'
+import { SectionCard } from '@/components/SectionCard'
+import { LoadingScreen, Spinner } from '@/components/ui/Spinner'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { useToast } from '@/components/ui/Toast'
+import { useProjectionGrid, useSaveCells } from '@/api/projectionApi'
+import type { GridCell, ProjectionMode, ProjectionSection } from '@/types/projection'
+import { PRIMARY_FIELD } from '@/types/projection'
+import { formatStatementNumber } from '@/utils/statementFormat'
+
+const SECTION_LABEL: Record<ProjectionSection, { driver: string; totalNoun: string; growthVerb: string }> = {
+  revenue: { driver: 'units', totalNoun: 'net revenue', growthVerb: 'growth' },
+  direct_costs: { driver: 'cost', totalNoun: 'cost of sales', growthVerb: 'inflation' },
+  operating_expenses: { driver: 'amount', totalNoun: 'operating expense', growthVerb: 'inflation' },
+}
+
+function cellDriver(section: ProjectionSection, c: GridCell): number {
+  if (section === 'revenue') return c.quantity ?? 0
+  if (section === 'operating_expenses') return c.amount ?? 0
+  return c.value // direct costs: edit the final cost (creates a manual override)
+}
+
+/** Plain editable string (no thousands separators while editing). */
+function numStr(n: number): string {
+  return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(2)))
+}
+
+export function ProjectionGrid({
+  projectId,
+  section,
+}: {
+  projectId: string
+  section: ProjectionSection
+}) {
+  const [mode, setMode] = useState<ProjectionMode>('monthly')
+  const { data: grid, isLoading, isError, error, refetch } = useProjectionGrid(projectId, section, mode)
+  const saveCells = useSaveCells(projectId, section)
+  const { notify } = useToast()
+
+  // edited values keyed by `${item_id}:${period_index}` -> raw string
+  const [edits, setEdits] = useState<Record<string, string>>({})
+  const [selected, setSelected] = useState<{ item: string; period: number } | null>(null)
+  const [growthPct, setGrowthPct] = useState('')
+  const [baseVal, setBaseVal] = useState('')
+
+  const labels = SECTION_LABEL[section]
+  const dirty = Object.keys(edits).length > 0
+  const resetEdits = () => setEdits({})
+
+  const periodCount = grid?.periods.length ?? 0
+  const keyOf = (item: string, period: number) => `${item}:${period}`
+
+  const valueFor = (item: string, c: GridCell): string => {
+    const k = keyOf(item, c.period_index)
+    return k in edits ? edits[k] : numStr(cellDriver(section, c))
+  }
+
+  const save = () => {
+    const field = PRIMARY_FIELD[section]
+    const cells = Object.entries(edits).map(([key, raw]) => {
+      const idx = key.lastIndexOf(':')
+      const item_id = key.slice(0, idx)
+      const period_index = Number(key.slice(idx + 1))
+      const num = Number(String(raw).replace(/,/g, ''))
+      return { item_id, period_index, [field]: Number.isNaN(num) ? 0 : num }
+    })
+    if (cells.length === 0) return
+    saveCells.mutate(
+      { mode, cells },
+      {
+        onSuccess: () => {
+          notify(`Saved ${cells.length} cell${cells.length === 1 ? '' : 's'}`)
+          resetEdits()
+        },
+        onError: (e) => notify((e as Error).message || 'Save failed', 'error'),
+      },
+    )
+  }
+
+  // -- client-side helpers (operate on what you see; then Save) -------------
+  const fillRight = () => {
+    if (!grid || !selected) {
+      notify('Click a cell first, then Fill right', 'error')
+      return
+    }
+    const row = grid.rows.find((r) => r.item_id === selected.item)
+    if (!row) return
+    const src = valueFor(selected.item, row.cells[selected.period])
+    setEdits((e) => {
+      const next = { ...e }
+      for (let t = selected.period + 1; t < periodCount; t++) next[keyOf(selected.item, t)] = src
+      return next
+    })
+    notify('Filled right — review then Save changes')
+  }
+
+  const applyGrowth = () => {
+    if (!grid) return
+    const g = Number(growthPct)
+    if (growthPct === '' || Number.isNaN(g)) {
+      notify('Enter a growth/inflation % first', 'error')
+      return
+    }
+    const rate = g / 100
+    const targetRows = selected ? grid.rows.filter((r) => r.item_id === selected.item) : grid.rows
+    setEdits((e) => {
+      const next = { ...e }
+      for (const row of targetRows) {
+        const base = baseVal !== '' ? Number(baseVal) : cellDriver(section, row.cells[0])
+        for (let t = 0; t < periodCount; t++) {
+          next[keyOf(row.item_id, t)] = numStr(base * Math.pow(1 + rate, t))
+        }
+      }
+      return next
+    })
+    notify(`Applied ${labels.growthVerb} — review then Save changes`)
+  }
+
+  if (isLoading) return <LoadingScreen label="Loading projection grid…" />
+  if (isError || !grid) {
+    return (
+      <SectionCard title="Could not load the projection grid" icon="⚠">
+        <div className="banner banner--warning" style={{ marginBottom: 14 }}>
+          <span className="banner__icon">⚠</span>
+          <div>{(error as Error)?.message ?? 'The request to the server failed.'}</div>
+        </div>
+        <button className="btn btn--primary" onClick={() => refetch()}>↻ Retry</button>
+      </SectionCard>
+    )
+  }
+
+  return (
+    <div className="stack">
+      {/* Toolbar */}
+      <SectionCard>
+        <div className="row row--wrap" style={{ gap: 20, alignItems: 'flex-end' }}>
+          <div className="field" style={{ minWidth: 0 }}>
+            <span className="field__label">Projection mode</span>
+            <div className="segmented">
+              <button className={`segmented__btn${mode === 'monthly' ? ' segmented__btn--active' : ''}`} onClick={() => { setMode('monthly'); resetEdits() }}>Monthly</button>
+              <button className={`segmented__btn${mode === 'annual' ? ' segmented__btn--active' : ''}`} onClick={() => { setMode('annual'); resetEdits() }}>Annual</button>
+            </div>
+          </div>
+
+          <div className="field" style={{ minWidth: 0 }}>
+            <span className="field__label">
+              Apply {labels.growthVerb} {selected ? '(selected row)' : '(all rows)'}
+            </span>
+            <div className="row" style={{ gap: 6 }}>
+              <input className="input" style={{ width: 92 }} placeholder="base" value={baseVal} onChange={(e) => setBaseVal(e.target.value)} />
+              <input className="input" style={{ width: 78 }} placeholder="% / period" value={growthPct} onChange={(e) => setGrowthPct(e.target.value)} />
+              <button className="btn btn--secondary btn--sm" onClick={applyGrowth}>Apply</button>
+            </div>
+          </div>
+
+          <button className="btn btn--secondary btn--sm" onClick={fillRight}>⟶ Fill right</button>
+          <div className="spacer" />
+          <button className="btn btn--secondary btn--sm" disabled title="Coming in a later phase">⤓ CSV</button>
+          {dirty && <span className="badge badge--amber badge--dot">{Object.keys(edits).length} unsaved</span>}
+          <button className="btn btn--primary" onClick={save} disabled={!dirty || saveCells.isPending}>
+            {saveCells.isPending ? <><Spinner /> Saving…</> : 'Save changes'}
+          </button>
+        </div>
+      </SectionCard>
+
+      {/* Warnings */}
+      {grid.warnings.length > 0 && (
+        <SectionCard title="Validation" icon="⚠" subtitle={`${grid.warnings.length} note(s)`}>
+          <div className="stack--sm">
+            {grid.warnings.map((w, i) => (
+              <div className="banner banner--warning" key={i}><span className="banner__icon">⚠</span><div>{w}</div></div>
+            ))}
+          </div>
+        </SectionCard>
+      )}
+
+      {/* Grid */}
+      <div className="card">
+        <div className="card__body">
+          {grid.rows.length === 0 ? (
+            <EmptyState icon="▦" title="Nothing to project yet" description="Add items in the Setup tab first." />
+          ) : (
+            <>
+              <p className="muted" style={{ fontSize: 12.5, marginBottom: 10 }}>
+                Editable cells show <strong>{labels.driver}</strong>; the Total column and totals row show{' '}
+                <strong>{labels.totalNoun}</strong> in {grid.currency} (updates when you Save).
+                {mode === 'annual' && ' Annual edits are spread across the year.'}
+              </p>
+              <div className="pgrid-wrap">
+                <table className="pgrid">
+                  <thead>
+                    <tr>
+                      <th className="pgrid__label-head">Item</th>
+                      {grid.periods.map((p) => (
+                        <th key={p.period_index} className="pgrid__num">{p.period_label}</th>
+                      ))}
+                      <th className="pgrid__num pgrid__total">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {grid.rows.map((row) => (
+                      <tr key={row.item_id}>
+                        <td className="pgrid__label">
+                          <strong>{row.label}</strong>
+                          {row.group && <span className="pgrid__group">{row.group}</span>}
+                        </td>
+                        {row.cells.map((c) => {
+                          const k = keyOf(row.item_id, c.period_index)
+                          const edited = k in edits
+                          const isSel = selected?.item === row.item_id && selected?.period === c.period_index
+                          return (
+                            <td key={c.period_index} className="pgrid__cell">
+                              <input
+                                className={`pgrid__input${edited ? ' pgrid__input--edited' : ''}${isSel ? ' pgrid__input--selected' : ''}`}
+                                value={valueFor(row.item_id, c)}
+                                onFocus={() => setSelected({ item: row.item_id, period: c.period_index })}
+                                onChange={(e) =>
+                                  setEdits((prev) => ({ ...prev, [k]: e.target.value }))
+                                }
+                                inputMode="decimal"
+                              />
+                            </td>
+                          )
+                        })}
+                        <td className="pgrid__num pgrid__total">{formatStatementNumber(row.total)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="pgrid__totals">
+                      <td className="pgrid__label">Total {labels.totalNoun}</td>
+                      {grid.totals_by_period.map((v, i) => (
+                        <td key={i} className="pgrid__num">{formatStatementNumber(v)}</td>
+                      ))}
+                      <td className="pgrid__num pgrid__total">{formatStatementNumber(grid.grand_total)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

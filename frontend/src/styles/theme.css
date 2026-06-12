@@ -1,0 +1,77 @@
+/* ==========================================================================
+   Design tokens — premium, neutral SaaS theme
+   ========================================================================== */
+:root {
+  /* Neutral slate scale */
+  --slate-50: #f8fafc;
+  --slate-100: #f1f5f9;
+  --slate-200: #e2e8f0;
+  --slate-300: #cbd5e1;
+  --slate-400: #94a3b8;
+  --slate-500: #64748b;
+  --slate-600: #475569;
+  --slate-700: #334155;
+  --slate-800: #1e293b;
+  --slate-900: #0f172a;
+  --slate-950: #020617;
+
+  /* Accents */
+  --blue-50: #eff6ff;
+  --blue-100: #dbeafe;
+  --blue-500: #3b82f6;
+  --blue-600: #2563eb;
+  --blue-700: #1d4ed8;
+
+  --emerald-50: #ecfdf5;
+  --emerald-100: #d1fae5;
+  --emerald-500: #10b981;
+  --emerald-600: #059669;
+  --emerald-700: #047857;
+
+  --amber-50: #fffbeb;
+  --amber-100: #fef3c7;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --amber-700: #b45309;
+
+  --red-50: #fef2f2;
+  --red-100: #fee2e2;
+  --red-500: #ef4444;
+  --red-600: #dc2626;
+  --red-700: #b91c1c;
+
+  /* Semantic */
+  --bg-app: var(--slate-100);
+  --bg-surface: #ffffff;
+  --bg-subtle: var(--slate-50);
+  --bg-sidebar: var(--slate-900);
+  --border: var(--slate-200);
+  --border-strong: var(--slate-300);
+  --text-primary: var(--slate-800);
+  --text-secondary: var(--slate-500);
+  --text-muted: var(--slate-400);
+  --text-inverse: #ffffff;
+  --accent: var(--blue-600);
+  --accent-hover: var(--blue-700);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+
+  /* Shadows — subtle, layered */
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --shadow: 0 4px 12px rgba(15, 23, 42, 0.06), 0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 10px 25px rgba(15, 23, 42, 0.08), 0 4px 10px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 20px 40px rgba(15, 23, 42, 0.12);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'JetBrains Mono', 'Consolas', monospace;
+
+  /* Layout */
+  --sidebar-width: 268px;
+  --topbar-height: 68px;
+}

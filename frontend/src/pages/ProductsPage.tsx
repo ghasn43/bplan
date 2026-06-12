@@ -1,0 +1,66 @@
+import { CollectionPage } from '@/components/pages/CollectionPage'
+import type { Column } from '@/components/DataTable'
+import type { FormConfig } from '@/components/form/types'
+import { SummaryCard } from '@/components/SummaryCard'
+import { ActiveBadge, Badge } from '@/components/ui/Badge'
+import type { ProductService } from '@/types'
+import { formatCurrency, formatDate } from '@/utils/format'
+import { labelFor, revenueTypeOptions } from '@/utils/options'
+import { useProjectContext } from '@/layouts/ProjectContext'
+
+const config: FormConfig = [
+  {
+    title: 'Product / Service',
+    fields: [
+      { name: 'name', label: 'Name', kind: 'text', required: true, span: 2, placeholder: 'e.g. Pro Subscription' },
+      { name: 'category', label: 'Category', kind: 'text', placeholder: 'e.g. SaaS' },
+      {
+        name: 'revenue_type', label: 'Revenue Type', kind: 'select', options: revenueTypeOptions, required: true,
+        help: 'How this offering earns money. Drives which revenue assumptions apply.',
+      },
+      { name: 'selling_price', label: 'Selling Price', kind: 'currency', required: true },
+      { name: 'unit_of_sale', label: 'Unit of Sale', kind: 'text', placeholder: 'e.g. seat / month' },
+      { name: 'launch_date', label: 'Launch Date', kind: 'date' },
+      { name: 'active', label: 'Active', kind: 'switch' },
+      { name: 'description', label: 'Description', kind: 'textarea', span: 2, placeholder: 'What the product/service includes.' },
+      { name: 'notes', label: 'Notes', kind: 'textarea', span: 2 },
+    ],
+  },
+]
+
+export function ProductsPage() {
+  const { currency } = useProjectContext()
+
+  const columns: Column<ProductService>[] = [
+    { header: 'Name', cell: (r) => <strong>{r.name}</strong> },
+    { header: 'Category', cell: (r) => r.category || '—' },
+    { header: 'Revenue Type', cell: (r) => <Badge tone="blue">{labelFor(revenueTypeOptions, r.revenue_type)}</Badge> },
+    { header: 'Price', align: 'right', cell: (r) => formatCurrency(r.selling_price, currency) },
+    { header: 'Unit', cell: (r) => r.unit_of_sale || '—' },
+    { header: 'Launch', cell: (r) => formatDate(r.launch_date) },
+    { header: 'Status', cell: (r) => <ActiveBadge active={r.active} /> },
+  ]
+
+  return (
+    <CollectionPage<ProductService>
+      slug="products"
+      sectionKey="products"
+      itemNoun="Product"
+      config={config}
+      columns={columns}
+      emptyIcon="◫"
+      emptyDescription="Define each product or service the company sells. These drive every revenue and cost assumption."
+      renderSummary={(rows) => {
+        const active = rows.filter((r) => r.active).length
+        const avgPrice = rows.length ? rows.reduce((s, r) => s + r.selling_price, 0) / rows.length : 0
+        return (
+          <div className="stat-grid">
+            <SummaryCard label="Total Offerings" value={rows.length} accent="blue" />
+            <SummaryCard label="Active" value={active} accent="green" />
+            <SummaryCard label="Avg. Selling Price" value={formatCurrency(avgPrice, currency)} accent="slate" />
+          </div>
+        )
+      }}
+    />
+  )
+}

@@ -1,0 +1,53 @@
+import type { Option } from '@/utils/options'
+
+export type FieldKind =
+  | 'text'
+  | 'textarea'
+  | 'number'
+  | 'currency'
+  | 'percent'
+  | 'date'
+  | 'select'
+  | 'switch'
+  | 'checkbox'
+
+export interface FieldConfig {
+  name: string
+  label: string
+  kind: FieldKind
+  /** Plain-English tooltip explaining a financial term. */
+  help?: string
+  placeholder?: string
+  /** Required for `select`. */
+  options?: Option[]
+  min?: number
+  max?: number
+  step?: number
+  required?: boolean
+  /** Static helper text under the field. */
+  hint?: string
+  /** Grid span (default 1). */
+  span?: 1 | 2
+  /** Allow negative numbers (growth/adjustment fields). */
+  allowNegative?: boolean
+  /** Conditional visibility based on current form values. */
+  visibleWhen?: (values: Record<string, unknown>) => boolean
+  /** Currency-style display unit override (e.g. for "days"). */
+  unit?: string
+}
+
+export interface CardConfig {
+  title: string
+  subtitle?: string
+  icon?: string
+  fields: FieldConfig[]
+  /** Render inside a collapsible "Advanced" section, collapsed by default. */
+  advanced?: boolean
+}
+
+export type FormConfig = CardConfig[]
+
+/** Flatten every field across all cards (used for validation + defaults). */
+export function allFields(config: FormConfig): FieldConfig[] {
+  return config.flatMap((c) => c.fields)
+}
