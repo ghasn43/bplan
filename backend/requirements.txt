@@ -8,3 +8,4 @@ matplotlib>=3.7.0
 # Optional — PDF rendering. Word generation works without it; the PDF route
 # falls back to a styled HTML report if WeasyPrint's native libs are missing.
 weasyprint>=60.0
+fastapi
