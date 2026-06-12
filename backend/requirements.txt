@@ -9,3 +9,13 @@ matplotlib>=3.7.0
 # falls back to a styled HTML report if WeasyPrint's native libs are missing.
 weasyprint>=60.0
 fastapi
+streamlit
+fastapi
+uvicorn
+python-multipart
+pandas
+numpy
+requests
+jinja2
+python-dotenv
+pyyaml
