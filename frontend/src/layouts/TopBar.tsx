@@ -4,6 +4,7 @@ import { CompletionRing } from '@/components/ui/Progress'
 import { pageBySlug } from '@/routes/nav'
 import { useCompany } from '@/api/companyApi'
 import { EditCompanyModal } from '@/components/company/EditCompanyModal'
+import { UserMenu } from '@/components/auth/UserMenu'
 import { useProjectContext } from './ProjectContext'
 
 function PencilIcon() {
@@ -62,7 +63,7 @@ export function TopBar() {
         {projectName && <div className="topbar__project">{projectName}</div>}
       </div>
 
-      <div className="topbar__right">
+      <div className="topbar__right" style={{ gap: 18 }}>
         <div className="topbar__completion">
           <div className="topbar__completion-label">
             <small>Plan Completion</small>
@@ -72,6 +73,7 @@ export function TopBar() {
             <CompletionRing percent={percent} />
           </div>
         </div>
+        <UserMenu />
       </div>
 
       <EditCompanyModal companyId={companyId} open={editOpen} onClose={() => setEditOpen(false)} />

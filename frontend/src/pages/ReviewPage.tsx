@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { PageHeader } from '@/components/PageHeader'
+import { ExcelModelButton } from '@/components/reports/ExcelModelButton'
 import { SaveBar } from '@/components/SaveBar'
 import { SectionCard } from '@/components/SectionCard'
 import { ReviewSection, type SummaryRow } from '@/components/ReviewSection'
@@ -72,6 +73,7 @@ export function ReviewPage() {
             <Link className="btn btn--secondary" to={`/projects/${projectId}/reports`}>
               ⎙ Business Plan Report
             </Link>
+            <ExcelModelButton projectId={projectId} />
             <button className="btn btn--primary" disabled={!review.ready_for_projection} title={
               review.ready_for_projection ? 'Ready to generate statements' : 'Complete required sections first'
             }>

@@ -1,0 +1,111 @@
+"""Central authentication + tenant-isolation middleware.
+
+Enforces, for every ``/api`` request (except public auth endpoints):
+  * a valid access token,
+  * admin-only access to ``/api/admin`` and demo reload,
+  * company scoping for ``/api/companies/{id}`` and ALL ``/api/projects/{id}/*``
+    routes (including nested reports, exports, text-plan images and file
+    downloads) — preventing IDOR across companies.
+
+A normal user can only reach resources whose company matches their assignment;
+inaccessible cross-company resources return 404 so the API never reveals that
+another company's project exists. When ``settings.auth_enabled`` is False (used
+by the test-suite) every request is treated as a system admin.
+"""
+from __future__ import annotations
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+
+from ..config import settings
+from ..models import User
+from ..security.tokens import decode_access_token
+
+PUBLIC = {
+    "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
+    "/api/auth/forgot-password", "/api/auth/reset-password",
+}
+
+_SYSTEM_ADMIN = User(id="system-admin", email="system@local", full_name="System",
+                     role="admin", company_id=None, is_active=True, is_verified=True)
+
+
+def _json(status_code: int, detail: str) -> JSONResponse:
+    return JSONResponse(status_code=status_code, content={"detail": detail})
+
+
+class AuthorizationMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        path = request.url.path
+        method = request.method
+
+        # Non-API paths (SPA, /health, /docs, /openapi.json) and preflight pass.
+        if method == "OPTIONS" or not path.startswith("/api"):
+            return await call_next(request)
+        if path in PUBLIC:
+            return await call_next(request)
+
+        # Test / explicitly-disabled mode: act as system admin.
+        if not settings.auth_enabled:
+            request.state.user = _SYSTEM_ADMIN
+            return await call_next(request)
+
+        # --- authenticate ---
+        token = request.cookies.get("access_token")
+        if not token:
+            auth = request.headers.get("authorization", "")
+            if auth.lower().startswith("bearer "):
+                token = auth[7:]
+        data = decode_access_token(token) if token else None
+        if not data:
+            return _json(401, "Not authenticated")
+        from ..storage import get_user_storage
+        try:
+            user = get_user_storage().get(data["sub"])
+        except Exception:
+            return _json(401, "Not authenticated")
+        if not user.is_active:
+            return _json(401, "Account is disabled")
+        request.state.user = user
+        is_admin = user.role == "admin"
+
+        parts = [p for p in path.split("/") if p]   # e.g. ['api','projects','id','setup']
+
+        # --- admin-only areas ---
+        if path.startswith("/api/admin"):
+            if not is_admin:
+                return _json(403, "Administrator access required")
+            return await call_next(request)
+
+        # --- demo reload is admin-only ---
+        if path.startswith("/api/demo/load") and method == "POST" and not is_admin:
+            return _json(403, "Administrator access required")
+
+        # --- company scoping ---
+        if len(parts) >= 3 and parts[1] == "companies":
+            seg = parts[2]
+            if seg != "my-company":
+                # editing/deleting a company profile is admin-only
+                if len(parts) == 3 and method in ("PUT", "DELETE") and not is_admin:
+                    return _json(403, "Administrator access required")
+                if not is_admin and user.company_id != seg:
+                    return _json(404, "Not found")
+        if path == "/api/companies" and method == "POST" and not is_admin:
+            return _json(403, "Administrator access required")
+
+        # --- project scoping (covers every nested route + file downloads) ---
+        if len(parts) >= 3 and parts[1] == "projects":
+            project_id = parts[2]
+            if not is_admin:
+                from ..storage import get_storage
+                from ..storage.base import NotFoundError
+                try:
+                    project = get_storage().get_project(project_id)
+                except NotFoundError:
+                    return _json(404, "Not found")
+                except Exception:
+                    return _json(404, "Not found")
+                if project.company_id != user.company_id:
+                    return _json(404, "Not found")
+
+        return await call_next(request)

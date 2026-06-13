@@ -23,6 +23,7 @@ from .routes import (
     cash_flow_router,
     companies_router,
     demo_router,
+    exports_router,
     financial_analysis_router,
     fixed_assets_router,
     income_statement_router,
@@ -31,6 +32,10 @@ from .routes import (
     reports_router,
     text_plan_router,
 )
+from .routes.admin_audit import router as admin_audit_router
+from .routes.admin_users import router as admin_users_router
+from .routes.auth import router as auth_router
+from .security.authz import AuthorizationMiddleware
 from .services.seed import seed_if_empty
 from .storage import get_storage
 
@@ -47,6 +52,13 @@ async def lifespan(app: FastAPI):
         company_service().migrate_all()
     except Exception:
         logger.exception("Company migration on startup failed")
+    # Seed the initial admin (+ dev users) so the app is reachable after login.
+    try:
+        from .services import auth_service
+        auth_service.seed_initial_admin()
+        auth_service.seed_dev_users()
+    except Exception:
+        logger.exception("Admin seeding on startup failed")
     yield
 
 
@@ -60,6 +72,10 @@ app = FastAPI(
     ),
     lifespan=lifespan,
 )
+
+# Authentication + tenant-isolation authorization (added before CORS so CORS
+# runs outermost and preflight/headers are handled first).
+app.add_middleware(AuthorizationMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
@@ -90,6 +106,11 @@ def health():
     return {"status": "ok", "version": __version__}
 
 
+# Auth + admin routes.
+app.include_router(auth_router, prefix=settings.api_prefix)
+app.include_router(admin_users_router, prefix=settings.api_prefix)
+app.include_router(admin_audit_router, prefix=settings.api_prefix)
+
 # Project-level routes + generated section routes.
 app.include_router(projects_router, prefix=settings.api_prefix)
 app.include_router(companies_router, prefix=settings.api_prefix)
@@ -104,6 +125,7 @@ app.include_router(projections_router, prefix=settings.api_prefix)
 app.include_router(fixed_assets_router, prefix=settings.api_prefix)
 app.include_router(reports_router, prefix=settings.api_prefix)
 app.include_router(text_plan_router, prefix=settings.api_prefix)
+app.include_router(exports_router, prefix=settings.api_prefix)
 for section_router in build_section_routers():
     app.include_router(section_router, prefix=settings.api_prefix)
 

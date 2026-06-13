@@ -2137,3 +2137,27 @@ h4 {
 .project-card__funding { display: flex; flex-direction: column; margin: 4px 0 12px; }
 .project-card__funding strong { font-size: 16px; font-weight: 700; color: var(--blue-600, #2563eb); }
 .project-card__funding span { font-size: 11px; color: var(--slate-500, #64748b); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ==========================================================================
+   Auth: login page + user menu
+   ========================================================================== */
+.login {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(160deg, #0f172a 0%, #1e293b 55%, #0e7c7b 140%); padding: 24px;
+}
+.login__card {
+  width: 100%; max-width: 420px; background: #fff; border-radius: 16px; padding: 36px 34px;
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.45);
+}
+.login__brand { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.login__brand-name { font-weight: 700; color: #1e293b; font-size: 15px; }
+.login__title { font-size: 24px; color: #1e293b; margin: 0 0 6px; }
+.login__subtitle { font-size: 13.5px; color: #64748b; line-height: 1.5; margin: 0 0 20px; }
+.login__error { background: #fef2f2; border-left: 3px solid #dc2626; color: #991b1b; padding: 9px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 14px; }
+.login__password { position: relative; }
+.login__toggle { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: none; background: none; color: #2563eb; cursor: pointer; font-size: 12px; }
+.login__hint { margin-top: 18px; font-size: 12px; color: #94a3b8; text-align: center; }
+.login__hint code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; color: #475569; }
+
+.usermenu__id { display: flex; flex-direction: column; line-height: 1.1; font-size: 12.5px; color: #334155; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usermenu__role { font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #94a3b8; }

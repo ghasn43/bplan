@@ -24,13 +24,22 @@ import { CashFlowPage } from '@/pages/CashFlowPage'
 import { FinancialAnalysisPage } from '@/pages/FinancialAnalysisPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { TextBuilderPage } from '@/pages/TextBuilderPage'
+import { LoginPage } from '@/pages/LoginPage'
+import { UserManagementPage } from '@/pages/admin/UserManagementPage'
+import { ProtectedRoute, AdminRoute } from '@/auth/ProtectedRoute'
 
 export function AppRoutes() {
   return (
     <Routes>
+      <Route path="/login" element={<LoginPage />} />
+
+      <Route element={<ProtectedRoute />}>
       <Route path="/" element={<Navigate to="/projects" replace />} />
       <Route path="/projects" element={<ProjectsListPage />} />
       <Route path="/projects/new" element={<NewProjectPage />} />
+      <Route element={<AdminRoute />}>
+        <Route path="/admin/users" element={<UserManagementPage />} />
+      </Route>
 
       <Route path="/projects/:projectId" element={<AppLayout />}>
         <Route index element={<Navigate to="setup" replace />} />
@@ -54,6 +63,7 @@ export function AppRoutes() {
         <Route path="cash-flow" element={<CashFlowPage />} />
         <Route path="financial-analysis" element={<FinancialAnalysisPage />} />
         <Route path="reports" element={<ReportsPage />} />
+      </Route>
       </Route>
 
       <Route path="*" element={<Navigate to="/projects" replace />} />

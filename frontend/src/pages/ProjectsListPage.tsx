@@ -9,6 +9,7 @@ import { DemoCompanyCard } from './DemoCompanyCard'
 import { CompanyProfileCard } from '@/components/company/CompanyProfileCard'
 import { ProjectCard } from '@/components/company/ProjectCard'
 import { EditCompanyModal } from '@/components/company/EditCompanyModal'
+import { UserMenu } from '@/components/auth/UserMenu'
 import type { ProjectSummary } from '@/types'
 
 export function ProjectsListPage() {
@@ -66,9 +67,12 @@ export function ProjectsListPage() {
             <div className="muted" style={{ fontSize: 13 }}>Companies and their business plans</div>
           </div>
         </div>
-        <button className="btn btn--primary btn--lg" onClick={() => navigate('/projects/new')}>
-          + New Business Plan
-        </button>
+        <div className="row" style={{ gap: 12, alignItems: 'center' }}>
+          <UserMenu />
+          <button className="btn btn--primary btn--lg" onClick={() => navigate('/projects/new')}>
+            + New Business Plan
+          </button>
+        </div>
       </header>
 
       <div className="landing__body">

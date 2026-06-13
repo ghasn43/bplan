@@ -17,6 +17,23 @@ const BACKEND_DOWN_HINT =
   'Cannot reach the API server. Make sure the backend is running: ' +
   'in backend/ run  py -m uvicorn app.main:app --reload  (it should be on http://127.0.0.1:8000).'
 
+/** Notify the app that the session is gone (AuthProvider listens). */
+function emitUnauthorized() {
+  window.dispatchEvent(new CustomEvent('bp:unauthorized'))
+}
+
+async function rawFetch(method: string, path: string, body: unknown, signal: AbortSignal): Promise<Response> {
+  return fetch(`${BASE}${path}`, {
+    method,
+    credentials: 'include', // send/receive HttpOnly auth cookies
+    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+    signal,
+  })
+}
+
+const NO_REFRESH = ['/auth/login', '/auth/refresh', '/auth/logout']
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   let res: Response
   // Guard against a request that never settles (e.g. a dev-proxy connection
@@ -24,12 +41,18 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30_000)
   try {
-    res = await fetch(`${BASE}${path}`, {
-      method,
-      headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal: controller.signal,
-    })
+    res = await rawFetch(method, path, body, controller.signal)
+    // Access token expired: try a single silent refresh, then retry once.
+    if (res.status === 401 && !NO_REFRESH.some((p) => path.startsWith(p))) {
+      const refreshed = await fetch(`${BASE}/auth/refresh`, { method: 'POST', credentials: 'include' })
+        .then((r) => r.ok)
+        .catch(() => false)
+      if (refreshed) {
+        res = await rawFetch(method, path, body, controller.signal)
+      } else {
+        emitUnauthorized()
+      }
+    }
   } catch (e) {
     if ((e as Error)?.name === 'AbortError') {
       throw new ApiError(0, 'The request timed out. It may have saved — refresh to check.', null)

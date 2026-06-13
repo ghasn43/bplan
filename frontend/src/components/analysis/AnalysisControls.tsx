@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ScenarioSelector } from '@/components/financials/ScenarioSelector'
 import { PeriodViewToggle } from '@/components/financials/PeriodViewToggle'
+import { ExcelModelButton } from '@/components/reports/ExcelModelButton'
 import type { FAView, ScenarioKey } from '@/types/financialAnalysis'
 
 const SECTIONS: { key: string; label: string }[] = [
@@ -33,10 +34,13 @@ export function AnalysisControls({
             <PeriodViewToggle value={view === 'yearly' ? 'yearly' : 'monthly'} onChange={(v) => onView(v === 'yearly' ? 'yearly' : 'monthly')} />
             <div className="spacer" />
             <div className="field" style={{ minWidth: 0 }}>
-              <span className="field__label">Report</span>
-              <Link className="btn btn--primary btn--sm" to={`/projects/${projectId}/reports`}>
-                ⎙ Generate Business Plan Report
-              </Link>
+              <span className="field__label">Export</span>
+              <div className="row" style={{ gap: 8 }}>
+                <Link className="btn btn--primary btn--sm" to={`/projects/${projectId}/reports`}>
+                  ⎙ Business Plan Report
+                </Link>
+                <ExcelModelButton projectId={projectId} className="btn btn--secondary btn--sm" />
+              </div>
             </div>
           </div>
         </div>

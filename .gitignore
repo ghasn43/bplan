@@ -29,3 +29,6 @@ backend/uploads/
 !backend/uploads/.gitkeep
 # Frontend build cache
 frontend/tsconfig.tsbuildinfo
+
+# Generated Excel exports
+backend/generated_exports/

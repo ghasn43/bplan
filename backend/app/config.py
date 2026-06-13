@@ -32,5 +32,22 @@ class Settings:
     # Seed a demo project on first boot if the store is empty.
     seed_on_startup: bool = os.getenv("BP_SEED_ON_STARTUP", "true").lower() == "true"
 
+    # Authentication -------------------------------------------------------
+    auth_enabled: bool = os.getenv("BP_AUTH_ENABLED", "true").lower() == "true"
+    jwt_secret: str = os.getenv("JWT_SECRET_KEY", "dev-insecure-access-secret-change-me")
+    jwt_refresh_secret: str = os.getenv("JWT_REFRESH_SECRET_KEY", "dev-insecure-refresh-secret-change-me")
+    access_token_minutes: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+    refresh_token_days: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+    cookie_secure: bool = os.getenv("BP_COOKIE_SECURE", "false").lower() == "true"
+    max_failed_logins: int = int(os.getenv("BP_MAX_FAILED_LOGINS", "5"))
+    lockout_minutes: int = int(os.getenv("BP_LOCKOUT_MINUTES", "15"))
+
+    # Initial admin (created on first boot only if no admin exists).
+    admin_email: str = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    admin_password: str = os.getenv("ADMIN_PASSWORD", "ChangeMe123!")
+    admin_full_name: str = os.getenv("ADMIN_FULL_NAME", "System Administrator")
+    # Dev-only finance user assigned to the demo company (for tenant-isolation testing).
+    seed_dev_users: bool = os.getenv("BP_SEED_DEV_USERS", "true").lower() == "true"
+
 
 settings = Settings()

@@ -1,7 +1,7 @@
 """Company routes: company CRUD + a company's projects."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from ..models import BusinessPlanProject, Company, CompanySummary, ProjectSummary
@@ -47,9 +47,33 @@ class ProjectCreateForCompany(BaseModel):
 
 
 @router.get("", response_model=list[CompanySummary])
-def list_companies(svc: CompanyService = Depends(get_company_service)):
+def list_companies(request: Request, svc: CompanyService = Depends(get_company_service)):
     svc.migrate_all()  # ensure legacy projects are linked before listing
-    return svc.list_summaries()
+    summaries = svc.list_summaries()
+    ids = _authorized_company_ids(request)
+    if ids is None:
+        return summaries
+    return [s for s in summaries if s.id in ids]
+
+
+@router.get("/my-company", response_model=CompanySummary)
+def my_company(request: Request, svc: CompanyService = Depends(get_company_service)):
+    user = getattr(request.state, "user", None)
+    if user is None or not getattr(user, "company_id", None):
+        raise HTTPException(404, "No company assigned")
+    svc.migrate_all()
+    summary = next((s for s in svc.list_summaries() if s.id == user.company_id), None)
+    if not summary:
+        raise HTTPException(404, "No company assigned")
+    return summary
+
+
+def _authorized_company_ids(request: Request):
+    """None = all (admin); else set of allowed company ids."""
+    user = getattr(request.state, "user", None)
+    if user is None or getattr(user, "role", None) == "admin":
+        return None
+    return {user.company_id} if getattr(user, "company_id", None) else set()
 
 
 @router.post("", response_model=Company, status_code=status.HTTP_201_CREATED)

@@ -1,7 +1,7 @@
 """Project-level routes: CRUD, completion, review, export."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
@@ -22,13 +22,22 @@ class CompanyNameUpdate(BaseModel):
 
 
 @router.get("", response_model=list[ProjectSummary])
-def list_projects(service: ProjectService = Depends(get_service)):
-    return service.list_summaries()
+def list_projects(request: Request, service: ProjectService = Depends(get_service)):
+    summaries = service.list_summaries()
+    user = getattr(request.state, "user", None)
+    if user is not None and getattr(user, "role", None) != "admin":
+        cid = getattr(user, "company_id", None)
+        summaries = [s for s in summaries if s.company_id == cid]
+    return summaries
 
 
 @router.post("", response_model=BusinessPlanProject, status_code=status.HTTP_201_CREATED)
-def create_project(payload: ProjectCreate, service: ProjectService = Depends(get_service)):
+def create_project(payload: ProjectCreate, request: Request, service: ProjectService = Depends(get_service)):
     project = BusinessPlanProject(name=payload.name)
+    user = getattr(request.state, "user", None)
+    # Normal users always create projects inside their own company (no orphans).
+    if user is not None and getattr(user, "role", None) != "admin" and getattr(user, "company_id", None):
+        project.company_id = user.company_id
     return service.create(project)
 
 
