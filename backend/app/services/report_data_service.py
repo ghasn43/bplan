@@ -315,9 +315,9 @@ def build_report_context(project: BusinessPlanProject, scenario: str, view: str,
         currency=currency, scenario=scenario, scenario_label=SCENARIO_LABELS.get(scenario, scenario.title()),
         view=vv, periods=periods, app_name="Business Plan Studio",
         meta=dict(
-            # Company (legal/reporting entity) and project (study title) are
-            # independent — never substitute one for the other.
-            company=(setup.business_name if setup and setup.business_name else project.name),
+            # Company (legal/reporting entity) comes from the parent Company
+            # record; project (study title) from the project's own setup.
+            company=_company_name(project, setup),
             project_name=(setup.project_name if setup else ""),
             title="Business Plan Financial Projection Report",
             subtitle=f"{_words(years)}-Year Projected Financial Study",
@@ -416,6 +416,20 @@ def collect_text_plan(project, options) -> dict:
             })
     return {"sections": sections, "has_content": bool(sections), "image_index": image_index,
             "title": project.text_plan.title or "Business Plan"}
+
+
+def _company_name(project, setup):
+    """Reporting entity name: parent Company record, else setup, else plan name."""
+    try:
+        from .companies import company_service
+        name = company_service().company_name_for_project(project)
+        if name:
+            return name
+    except Exception:
+        pass
+    if setup and setup.business_name:
+        return setup.business_name
+    return project.name
 
 
 def _words(n):
@@ -553,7 +567,7 @@ def build_report_preview(project, scenario, view, options):
 
     return ReportPreview(
         project_id=project.id, title="Business Plan Financial Projection Report",
-        company=(setup.business_name if setup and setup.business_name else project.name),
+        company=_company_name(project, setup),
         project_name=(setup.project_name if setup else None),
         scenario=scenario, scenario_label=SCENARIO_LABELS.get(scenario, scenario.title()), view=view,
         currency=currency, period_range=f"{start_year}–{start_year + years - 1}",

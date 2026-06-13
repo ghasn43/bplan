@@ -8,9 +8,11 @@ from __future__ import annotations
 
 from ..config import settings
 from .base import StorageBackend
+from .company_storage import CompanyStorage
 from .json_storage import JSONStorage
 
 _backend: StorageBackend | None = None
+_company_backend: CompanyStorage | None = None
 
 
 def get_storage() -> StorageBackend:
@@ -26,4 +28,12 @@ def get_storage() -> StorageBackend:
     return _backend
 
 
-__all__ = ["StorageBackend", "JSONStorage", "get_storage"]
+def get_company_storage() -> CompanyStorage:
+    """FastAPI dependency returning the process-wide company storage."""
+    global _company_backend
+    if _company_backend is None:
+        _company_backend = CompanyStorage(settings.data_dir)
+    return _company_backend
+
+
+__all__ = ["StorageBackend", "JSONStorage", "CompanyStorage", "get_storage", "get_company_storage"]

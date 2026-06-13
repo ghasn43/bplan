@@ -35,6 +35,7 @@ class ProjectService:
                 ProjectSummary(
                     id=p.id,
                     name=p.name,
+                    company_id=p.company_id,
                     company_name=setup.business_name if setup else None,
                     project_name=setup.project_name if setup else None,
                     business_name=setup.business_name if setup else None,
@@ -43,6 +44,18 @@ class ProjectService:
                     currency=setup.currency if setup else None,
                     projection_period=(setup.projection_period.value if setup else None),
                     completion_percent=completion.completion_percent,
+                    products_count=len(p.products),
+                    direct_costs_count=len(p.direct_costs),
+                    staff_roles_count=len(p.staffing),
+                    operating_expenses_count=len(p.operating_expenses),
+                    fixed_assets_count=len(p.fixed_assets),
+                    scenarios_count=len(p.scenarios),
+                    total_funding=(
+                        p.financing.equity.founder_capital
+                        + p.financing.equity.investor_equity
+                        + sum(l.amount for l in p.financing.loans)
+                        + sum(g.amount for g in p.financing.grants)
+                    ),
                     created_at=p.created_at,
                     updated_at=p.updated_at,
                 )

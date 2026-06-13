@@ -51,6 +51,7 @@ from .text_plan import (
     TextPlanSection,
     TextPlanTopic,
 )
+from .company import Company, CompanySummary
 from .project import (
     BusinessPlanProject,
     CompletionReport,
@@ -115,4 +116,6 @@ __all__ = [
     "TextPlanSection",
     "TextPlanTopic",
     "TextPlanImage",
+    "Company",
+    "CompanySummary",
 ]

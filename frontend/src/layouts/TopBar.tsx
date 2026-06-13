@@ -1,6 +1,9 @@
-import { useLocation, useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { CompletionRing } from '@/components/ui/Progress'
 import { pageBySlug } from '@/routes/nav'
+import { useCompany } from '@/api/companyApi'
+import { EditCompanyModal } from '@/components/company/EditCompanyModal'
 import { useProjectContext } from './ProjectContext'
 
 function PencilIcon() {
@@ -14,16 +17,20 @@ function PencilIcon() {
 }
 
 export function TopBar() {
-  const { projectId, project, completion } = useProjectContext()
-  const navigate = useNavigate()
+  const { project, completion } = useProjectContext()
   const location = useLocation()
   const slug = location.pathname.split('/').pop() ?? ''
   const page = pageBySlug(slug)
+  const [editOpen, setEditOpen] = useState(false)
 
-  // The title is the saved company name (setup.business_name). It is never taken
-  // from project_name; project.name is only a last-resort label for brand-new
-  // projects that have no setup yet.
-  const companyName = project?.setup?.business_name || project?.name || 'Untitled Company'
+  const companyId = project?.company_id ?? null
+  const companyQ = useCompany(companyId)
+
+  // The title is the parent company's name (the canonical source). It is never
+  // taken from project_name; setup.business_name / project.name are fallbacks
+  // only until the company record loads or for legacy projects.
+  const companyName =
+    companyQ.data?.company_name || project?.setup?.business_name || project?.name || 'Untitled Company'
   const projectName = project?.setup?.project_name ?? ''
   const percent = completion?.completion_percent ?? 0
 
@@ -35,20 +42,22 @@ export function TopBar() {
           <button
             type="button"
             className="topbar__title-link"
-            onClick={() => navigate(`/projects/${projectId}/setup?focus=company_name`)}
-            title="Edit company name"
+            onClick={() => companyId && setEditOpen(true)}
+            title="Edit company profile"
           >
             {companyName}
           </button>
-          <button
-            type="button"
-            className="topbar__edit"
-            title="Edit company name"
-            aria-label="Edit company name"
-            onClick={() => navigate(`/projects/${projectId}/setup?focus=company_name`)}
-          >
-            <PencilIcon />
-          </button>
+          {companyId && (
+            <button
+              type="button"
+              className="topbar__edit"
+              title="Edit company profile"
+              aria-label="Edit company profile"
+              onClick={() => setEditOpen(true)}
+            >
+              <PencilIcon />
+            </button>
+          )}
         </div>
         {projectName && <div className="topbar__project">{projectName}</div>}
       </div>
@@ -64,6 +73,8 @@ export function TopBar() {
           </div>
         </div>
       </div>
+
+      <EditCompanyModal companyId={companyId} open={editOpen} onClose={() => setEditOpen(false)} />
     </header>
   )
 }

@@ -9,10 +9,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..models import BusinessPlanProject
+from ..models import BusinessPlanProject, Company
 from ..storage.base import StorageBackend
+from ..storage.company_storage import CompanyStorage
 from .completion import build_completion_report
 from .demo_builder import DEMO_PROJECT_ID
+
+DEMO_COMPANY_ID = "company_aquapure"
 
 DEMO_JSON_PATH = Path(__file__).resolve().parent.parent / "seeds" / "demo_aquapure_smart_filters.json"
 
@@ -38,11 +41,24 @@ def _load_demo_document() -> BusinessPlanProject:
     return build_demo_project()
 
 
-def load_aquapure(storage: StorageBackend) -> BusinessPlanProject:
-    """Create or *reset* the AquaPure demo project under its stable ID."""
+def load_aquapure(storage: StorageBackend, company_storage: CompanyStorage | None = None) -> BusinessPlanProject:
+    """Create or *reset* the AquaPure demo company + project under stable IDs."""
     project = _load_demo_document()
     project.id = DEMO_PROJECT_ID
+    project.company_id = DEMO_COMPANY_ID
     storage.save_project(project)
+    if company_storage is not None:
+        setup = project.setup
+        company = Company(
+            id=DEMO_COMPANY_ID,
+            company_name=setup.business_name if setup else "AquaPure Smart Filters FZE",
+            industry_sector=setup.industry if setup else None,
+            business_description=setup.business_description if setup else None,
+            country=setup.country if setup else None,
+            city=setup.city if setup else None,
+            status="demo",
+        )
+        company_storage.save_company(company)
     return project
 
 

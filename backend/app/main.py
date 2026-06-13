@@ -19,6 +19,7 @@ from .routes import (
     balance_sheet_router,
     build_section_routers,
     cash_flow_router,
+    companies_router,
     demo_router,
     financial_analysis_router,
     fixed_assets_router,
@@ -38,6 +39,12 @@ logger = logging.getLogger("businessplan")
 async def lifespan(app: FastAPI):
     if settings.seed_on_startup:
         seed_if_empty(get_storage())
+    # Backfill the parent Company for any legacy projects (one-time, idempotent).
+    try:
+        from .services.companies import company_service
+        company_service().migrate_all()
+    except Exception:
+        logger.exception("Company migration on startup failed")
     yield
 
 
@@ -83,6 +90,7 @@ def health():
 
 # Project-level routes + generated section routes.
 app.include_router(projects_router, prefix=settings.api_prefix)
+app.include_router(companies_router, prefix=settings.api_prefix)
 app.include_router(demo_router, prefix=settings.api_prefix)
 app.include_router(income_statement_router, prefix=settings.api_prefix)
 app.include_router(balance_sheet_router, prefix=settings.api_prefix)

@@ -5,8 +5,9 @@ from fastapi import APIRouter, Depends
 
 from ..models import BusinessPlanProject
 from ..services import demo
-from ..storage import get_storage
+from ..storage import get_company_storage, get_storage
 from ..storage.base import StorageBackend
+from ..storage.company_storage import CompanyStorage
 
 router = APIRouter(prefix="/demo", tags=["demo"])
 
@@ -18,6 +19,7 @@ def aquapure_preview(storage: StorageBackend = Depends(get_storage)) -> dict:
 
 
 @router.post("/load-aquapure", response_model=BusinessPlanProject)
-def load_aquapure(storage: StorageBackend = Depends(get_storage)) -> BusinessPlanProject:
-    """Create or reset the AquaPure Smart Filters FZE demo project."""
-    return demo.load_aquapure(storage)
+def load_aquapure(storage: StorageBackend = Depends(get_storage),
+                  companies: CompanyStorage = Depends(get_company_storage)) -> BusinessPlanProject:
+    """Create or reset the AquaPure Smart Filters FZE demo company + project."""
+    return demo.load_aquapure(storage, companies)

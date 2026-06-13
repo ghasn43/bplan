@@ -318,6 +318,7 @@ export interface KPIAssumption extends EntityBase {
 // -- Aggregate / meta -------------------------------------------------------
 export interface BusinessPlanProject extends EntityBase {
   name: string
+  company_id?: string | null
   setup?: ProjectSetup | null
   products: ProductService[]
   revenue: RevenueAssumption[]
@@ -336,6 +337,7 @@ export interface BusinessPlanProject extends EntityBase {
 export interface ProjectSummary {
   id: string
   name: string
+  company_id?: string | null
   company_name?: string | null
   project_name?: string | null
   business_name?: string | null
@@ -344,6 +346,13 @@ export interface ProjectSummary {
   currency?: string | null
   projection_period?: string | null
   completion_percent: number
+  products_count?: number
+  direct_costs_count?: number
+  staff_roles_count?: number
+  operating_expenses_count?: number
+  fixed_assets_count?: number
+  scenarios_count?: number
+  total_funding?: number
   created_at: string
   updated_at: string
 }

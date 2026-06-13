@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from .balance_sheet import router as balance_sheet_router
 from .cash_flow import router as cash_flow_router
+from .companies import router as companies_router
 from .demo import router as demo_router
 from .financial_analysis import router as financial_analysis_router
 from .fixed_assets import router as fixed_assets_router
@@ -15,6 +16,7 @@ from .sections import build_section_routers
 
 __all__ = [
     "projects_router",
+    "companies_router",
     "demo_router",
     "balance_sheet_router",
     "cash_flow_router",

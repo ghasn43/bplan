@@ -23,6 +23,7 @@ import { BalanceSheetPage } from '@/pages/BalanceSheetPage'
 import { CashFlowPage } from '@/pages/CashFlowPage'
 import { FinancialAnalysisPage } from '@/pages/FinancialAnalysisPage'
 import { ReportsPage } from '@/pages/ReportsPage'
+import { TextBuilderPage } from '@/pages/TextBuilderPage'
 
 export function AppRoutes() {
   return (
@@ -47,6 +48,7 @@ export function AppRoutes() {
         <Route path="scenarios" element={<ScenariosPage />} />
         <Route path="kpis" element={<KPIsPage />} />
         <Route path="review" element={<ReviewPage />} />
+        <Route path="text-builder" element={<TextBuilderPage />} />
         <Route path="income-statement" element={<IncomeStatementPage />} />
         <Route path="balance-sheet" element={<BalanceSheetPage />} />
         <Route path="cash-flow" element={<CashFlowPage />} />

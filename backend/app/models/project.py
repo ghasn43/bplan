@@ -26,6 +26,10 @@ class BusinessPlanProject(TimestampedModel):
 
     name: str = Field(..., min_length=1, max_length=200)
 
+    # Parent company (one company -> many projects). Backfilled by migration for
+    # legacy projects from setup.business_name.
+    company_id: str | None = None
+
     setup: ProjectSetup | None = None
     products: list[ProductService] = Field(default_factory=list)
     revenue: list[RevenueAssumption] = Field(default_factory=list)
@@ -59,6 +63,7 @@ class ProjectSummary(BaseModel):
 
     id: str
     name: str
+    company_id: str | None = None
     company_name: str | None = None
     project_name: str | None = None
     business_name: str | None = None      # legacy alias of company_name
@@ -67,6 +72,14 @@ class ProjectSummary(BaseModel):
     currency: str | None = None
     projection_period: str | None = None
     completion_percent: int = 0
+    # Per-project metrics (for the project card).
+    products_count: int = 0
+    direct_costs_count: int = 0
+    staff_roles_count: int = 0
+    operating_expenses_count: int = 0
+    fixed_assets_count: int = 0
+    scenarios_count: int = 0
+    total_funding: float = 0
     created_at: datetime
     updated_at: datetime
 
