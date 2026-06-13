@@ -8,10 +8,12 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import __version__
 from .config import settings
@@ -104,3 +106,24 @@ app.include_router(reports_router, prefix=settings.api_prefix)
 app.include_router(text_plan_router, prefix=settings.api_prefix)
 for section_router in build_section_routers():
     app.include_router(section_router, prefix=settings.api_prefix)
+
+
+# --------------------------------------------------------------------------
+# Serve the built React SPA (production single-service deployment).
+# In local dev the frontend runs on Vite; this block is a no-op when the
+# build output is absent.
+# --------------------------------------------------------------------------
+_FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if (_FRONTEND_DIST / "index.html").exists():
+    if (_FRONTEND_DIST / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=_FRONTEND_DIST / "assets"), name="assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa(full_path: str):
+        # Never let the SPA fallback swallow unmatched API calls.
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = _FRONTEND_DIST / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_FRONTEND_DIST / "index.html")

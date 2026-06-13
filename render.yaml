@@ -1,0 +1,21 @@
+# Render Blueprint — one Docker web service running the full app.
+# Create a new Blueprint in Render and point it at this repo, or set up a
+# Web Service with runtime "Docker" and Dockerfile path ./Dockerfile.
+services:
+  - type: web
+    name: bplan
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: BP_SEED_ON_STARTUP
+        value: "true"
+      # Persist data across deploys by attaching a disk and pointing the data
+      # dir at it (uncomment the disk block + this var; requires a paid plan).
+      # - key: BP_DATA_DIR
+      #   value: /data
+    # disk:
+    #   name: bplan-data
+    #   mountPath: /data
+    #   sizeGB: 1

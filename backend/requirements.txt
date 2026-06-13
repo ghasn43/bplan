@@ -1,21 +1,13 @@
-streamlit
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.6
 pydantic>=2.10.0
 python-dateutil>=2.9.0
+python-multipart>=0.0.9
+# Word reports
 python-docx>=1.1.0
 # Renders the Financial Analysis charts to PNG images for the Word/PDF reports.
 matplotlib>=3.7.0
-# Optional — PDF rendering. Word generation works without it; the PDF route
-# falls back to a styled HTML report if WeasyPrint's native libs are missing.
+# Topic image handling (dimensions, validation)
+Pillow>=10.0.0
+# PDF rendering (needs native libs: Pango/Cairo — installed in the Dockerfile).
 weasyprint>=60.0
-fastapi
-fastapi
-uvicorn
-python-multipart
-pandas
-numpy
-requests
-jinja2
-python-dotenv
-pyyaml
