@@ -26,8 +26,10 @@ export function DemoCompanyCard({
   spinner: ReactNode
 }) {
   const tags = preview?.tags ?? ['Product Sales', 'Installation', 'Maintenance', 'Subscription', 'UAE VAT', 'Working Capital']
-  const title = preview?.name ?? 'AquaPure Smart Filters FZE'
-  const subtitle = preview?.subtitle ?? 'Complete 5-year UAE smart water filtration business plan scenario'
+  // Values come from the demo-preview API; these are only brief loading fallbacks.
+  const company = preview?.company_name || 'Demo Company'
+  const projectName = preview?.project_name || ''
+  const description = preview?.description ?? preview?.subtitle ?? 'Complete business plan scenario with realistic data'
 
   return (
     <section className="demo-card">
@@ -38,8 +40,9 @@ export function DemoCompanyCard({
             <span className="demo-card__droplet">💧</span> Demo Company
             {preview?.already_loaded && <Badge tone="green" dot>Loaded</Badge>}
           </div>
-          <h2 className="demo-card__title">{title}</h2>
-          <p className="demo-card__subtitle">{subtitle}</p>
+          <h2 className="demo-card__title">{company}</h2>
+          <p className="demo-card__project">{projectName}</p>
+          <p className="demo-card__subtitle">{description}</p>
 
           <div className="row row--wrap demo-card__tags">
             {tags.map((t) => (

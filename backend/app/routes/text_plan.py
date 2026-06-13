@@ -194,6 +194,20 @@ def get_image_file(project_id: str, topic_id: str, image_id: str,
     return FileResponse(path, media_type=img.mime_type or "image/png")
 
 
+@router.get("/images/{image_id}/file")
+def get_image_file_by_id(project_id: str, image_id: str, storage: StorageBackend = Depends(get_storage)):
+    """Topic-independent image serving (used by inline rich-text image nodes)."""
+    project = _project_or_404(storage, project_id)
+    _topic, img = imgsvc.find_image(project, image_id)
+    if not img:
+        raise HTTPException(status_code=404, detail="Image not found")
+    path = imgsvc.image_file_path(project_id, img.file_name)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Image file is missing")
+    return FileResponse(path, media_type=img.mime_type or "image/png",
+                        filename=img.original_file_name or img.file_name)
+
+
 # --------------------------------------------------------------------------
 # templates / outline
 # --------------------------------------------------------------------------

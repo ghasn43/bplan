@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import io
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -372,17 +373,73 @@ def add_assumptions_sections(doc, ctx):
     add_kpi_table(doc, ctx["kpis"])
 
 
+def _set_keep_with_next(paragraph):
+    pPr = paragraph._p.get_or_add_pPr()
+    pPr.append(OxmlElement("w:keepNext"))
+
+
+def _set_keep_together(paragraph):
+    pPr = paragraph._p.get_or_add_pPr()
+    pPr.append(OxmlElement("w:keepLines"))
+
+
+_ALIGN = {"left": WD_ALIGN_PARAGRAPH.LEFT, "right": WD_ALIGN_PARAGRAPH.RIGHT,
+          "center": WD_ALIGN_PARAGRAPH.CENTER, "full_width": WD_ALIGN_PARAGRAPH.CENTER}
+
+
+def _add_image_node(doc, attrs: dict, image_index: dict) -> None:
+    """Embed an inline rich-text image (TipTap <img data-image-id>) at this point.
+
+    Inline/block placement (not floating): the image sits between paragraphs and
+    flows with the text. The caption is kept with the image."""
+    image_id = attrs.get("data-image-id") or attrs.get("imageid")
+    meta = image_index.get(image_id) if image_id else None
+    align = (attrs.get("data-alignment") or (meta or {}).get("alignment") or "center").lower()
+    caption = attrs.get("data-caption") or (meta or {}).get("caption") or ""
+    try:
+        pct = int(float(attrs.get("data-width") or (meta or {}).get("width_pct") or 80))
+    except (TypeError, ValueError):
+        pct = 80
+    if align == "full_width":
+        pct = 100
+    pct = min(max(pct, 10), 100)
+
+    file_path = (meta or {}).get("file_path")
+    p = doc.add_paragraph()
+    p.alignment = _ALIGN.get(align, WD_ALIGN_PARAGRAPH.CENTER)
+    if not file_path or not os.path.exists(file_path):
+        run = p.add_run("[Image unavailable]")
+        run.italic = True
+        run.font.size = Pt(9)
+        run.font.color.rgb = SLATE
+        return
+    try:
+        p.add_run().add_picture(file_path, width=Inches(6.5 * pct / 100.0))
+    except Exception:
+        run = p.add_run("[Image could not be rendered]")
+        run.italic = True
+        run.font.size = Pt(9)
+        run.font.color.rgb = SLATE
+        return
+    if caption:
+        _set_keep_with_next(p)  # keep image with its caption
+        cap = add_paragraph_block(doc, caption, italic=True, size=8.5, color=SLATE)
+        cap.alignment = p.alignment
+
+
 class _HtmlToDocx(HTMLParser):
     """Minimal HTML -> python-docx renderer for TipTap rich text.
 
     Preserves paragraphs, H2/H3 headings, bold/italic/underline/strikethrough,
-    bullet + numbered lists, blockquotes, links (as text), <br> and <hr>.
-    Anything unknown degrades gracefully to a styled paragraph.
+    bullet + numbered lists, blockquotes, links (as text), <br>, <hr>, and inline
+    <img> nodes (embedded at their exact position). Unknown markup degrades to a
+    styled paragraph.
     """
 
-    def __init__(self, doc):
+    def __init__(self, doc, image_index: dict | None = None):
         super().__init__(convert_charrefs=True)
         self.doc = doc
+        self.image_index = image_index or {}
         self.para = None
         self.fmt = {"bold": 0, "italic": 0, "underline": 0, "strike": 0}
         self.list_stack: list[str] = []
@@ -391,12 +448,18 @@ class _HtmlToDocx(HTMLParser):
         self.para = None
 
     def handle_starttag(self, tag, attrs):
+        if tag == "img":
+            self._flush()
+            _add_image_node(self.doc, dict(attrs), self.image_index)
+            return
         if tag == "p":
             self.para = self.doc.add_paragraph()
         elif tag in ("h1", "h2"):
             self.para = self.doc.add_heading("", level=3)
         elif tag in ("h3", "h4", "h5"):
             self.para = self.doc.add_heading("", level=4)
+        elif tag in ("figure", "figcaption"):
+            return  # handled via the inner <img>; ignore wrappers
         elif tag == "blockquote":
             self.para = self.doc.add_paragraph()
             self.para.paragraph_format.left_indent = Inches(0.3)
@@ -424,6 +487,10 @@ class _HtmlToDocx(HTMLParser):
         elif tag == "hr":
             self.doc.add_paragraph("―" * 24)
             self._flush()
+
+    def handle_startendtag(self, tag, attrs):
+        # Self-closing <img/> still routes through start handling.
+        self.handle_starttag(tag, attrs)
 
     def handle_endtag(self, tag):
         if tag in ("strong", "b"):
@@ -457,9 +524,9 @@ class _HtmlToDocx(HTMLParser):
             run.font.strike = True
 
 
-def _html_to_docx(doc, html: str) -> None:
+def _html_to_docx(doc, html: str, image_index: dict | None = None) -> None:
     cleaned = re.sub(r"<script.*?</script>", "", html or "", flags=re.S | re.I)
-    parser = _HtmlToDocx(doc)
+    parser = _HtmlToDocx(doc, image_index)
     try:
         parser.feed(cleaned)
         parser.close()
@@ -467,29 +534,11 @@ def _html_to_docx(doc, html: str) -> None:
         add_paragraph_block(doc, re.sub(r"<[^>]+>", " ", html or ""))
 
 
-def _add_topic_images(doc, topic):
-    for img in topic.get("images", []):
-        try:
-            p = doc.add_paragraph()
-            align = (img.get("alignment") or "center").lower()
-            p.alignment = {"left": WD_ALIGN_PARAGRAPH.LEFT, "right": WD_ALIGN_PARAGRAPH.RIGHT,
-                           "full_width": WD_ALIGN_PARAGRAPH.CENTER}.get(align, WD_ALIGN_PARAGRAPH.CENTER)
-            pct = img.get("width_pct") or 100
-            if align == "full_width":
-                pct = 100
-            width = Inches(6.3 * min(max(int(pct), 10), 100) / 100.0)
-            p.add_run().add_picture(img["path"], width=width)
-            if img.get("caption"):
-                cap = add_paragraph_block(doc, img["caption"], italic=True, size=8.5, color=SLATE)
-                cap.alignment = p.alignment
-        except Exception:
-            continue
-
-
 def add_textual_business_plan(doc, ctx):
     tp = ctx.get("text_plan") or {}
     if not tp.get("has_content"):
         return
+    image_index = tp.get("image_index") or {}
     for sec in tp["sections"]:
         add_heading(doc, sec["title"], level=1)
         if sec.get("description"):
@@ -500,10 +549,28 @@ def add_textual_business_plan(doc, ctx):
                 add_warning_box(doc, f"Guidance: {topic['guidance']}", "info")
             content = (topic.get("content_html") or "").strip()
             if content:
-                _html_to_docx(doc, content)
+                _html_to_docx(doc, content, image_index)
             elif (topic.get("plain_text") or "").strip():
                 add_paragraph_block(doc, topic["plain_text"])
-            _add_topic_images(doc, topic)
+
+
+def _statement_header(doc, ctx, statement_title, when):
+    """IFRS-style statement header: reporting entity (company) on top, statement
+    title, then the project/study reference and the period line."""
+    m = ctx["meta"]
+    p = doc.add_paragraph()
+    r = p.add_run(m["company"])
+    r.bold = True
+    r.font.size = Pt(12)
+    r.font.color.rgb = NAVY
+    t = doc.add_paragraph()
+    tr = t.add_run(statement_title)
+    tr.bold = True
+    tr.font.size = Pt(11)
+    tr.font.color.rgb = BLUE
+    if m.get("project_name"):
+        add_paragraph_block(doc, m["project_name"], italic=True, size=9.5, color=SLATE)
+    add_paragraph_block(doc, when, size=9, color=SLATE)
 
 
 def add_financial_statements(doc, ctx):
@@ -513,11 +580,12 @@ def add_financial_statements(doc, ctx):
     add_heading(doc, "8. Financial Statements", level=1, page_break=False)
     add_paragraph_block(doc, f"All figures in {ctx['currency']}. Negative amounts are shown in parentheses; "
                              f"a dash indicates a nil balance.", italic=True, size=9)
-    add_subheading(doc, "Statement of Profit or Loss")
+    period = ctx["meta"]["period_range"]
+    _statement_header(doc, ctx, "Statement of Profit or Loss", f"For the projected period {period}")
     add_financial_table(doc, ctx["periods"], ctx["income_statement"]["rows"], ctx["currency"])
-    add_subheading(doc, "Statement of Financial Position")
+    _statement_header(doc, ctx, "Statement of Financial Position", f"As at the end of the projected period ({period})")
     add_financial_table(doc, ctx["periods"], ctx["balance_sheet"]["rows"], ctx["currency"])
-    add_subheading(doc, "Statement of Cash Flows (indirect method)")
+    _statement_header(doc, ctx, "Statement of Cash Flows (indirect method)", f"For the projected period {period}")
     add_financial_table(doc, ctx["periods"], ctx["cash_flow"]["rows"], ctx["currency"])
 
 
@@ -623,6 +691,7 @@ def generate_business_plan_docx(project: BusinessPlanProject, request) -> Report
     add_cover_page(doc, ctx)
     add_table_of_contents_placeholder(doc)
     add_executive_summary(doc, ctx)
+    add_textual_business_plan(doc, ctx)
     add_business_overview(doc, ctx)
     add_products_revenue(doc, ctx)
     add_assumptions_sections(doc, ctx)

@@ -15,6 +15,11 @@ export interface ReportRequest {
   include_assumptions: boolean
   include_warnings: boolean
   output_format: 'docx' | 'pdf'
+  include_text_plan: boolean
+  text_plan_include_completed: boolean
+  text_plan_include_drafts: boolean
+  text_plan_include_images: boolean
+  text_plan_include_guidance: boolean
 }
 
 export interface ReportWarning {

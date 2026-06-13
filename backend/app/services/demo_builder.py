@@ -524,4 +524,47 @@ def build_demo_project() -> BusinessPlanProject:
     rps.ensure_persisted(project, n, start)
     oep.ensure_persisted(project, n, start)
 
+    _seed_text_plan(project)
+
     return project
+
+
+def _seed_text_plan(project: BusinessPlanProject) -> None:
+    """Seed the written business plan using the Water Treatment / Environmental
+    template with sample draft content (demonstrates the Text Builder + report)."""
+    from .business_plan_outline_service import build_template_water_treatment
+    from .text_plan_service import _recompute_topic_metrics, _reindex
+    from ..models.text_plan import TextPlanSection, TextPlanTopic
+
+    doc = project.text_plan
+    doc.title = "AquaPure Smart Filters — Business Plan"
+    doc.template_id = "water_treatment"
+    doc.business_type = "water_treatment"
+    doc.sections = []
+    for sidx, sspec in enumerate(build_template_water_treatment(sample=True)):
+        section = TextPlanSection(
+            title=sspec["title"], section_type=sspec["section_type"],
+            description=sspec["description"], guidance_text=sspec["guidance_text"],
+            order_index=sidx,
+        )
+        for tidx, tspec in enumerate(sspec["topics"]):
+            topic = TextPlanTopic(
+                section_id=section.id, title=tspec["title"], topic_type=tspec["topic_type"],
+                guidance_text=tspec["guidance_text"], content_html=tspec.get("sample_html", ""),
+                order_index=tidx,
+            )
+            if topic.content_html:
+                _recompute_topic_metrics(topic)
+                topic.status = "completed" if sidx == 0 else "draft"
+            section.topics.append(topic)
+        _reindex(section.topics)
+        # mark a section completed when all its topics carry content
+        if section.topics and all(t.word_count > 0 for t in section.topics):
+            section.status = "completed"
+        elif any(t.word_count > 0 for t in section.topics):
+            section.status = "draft"
+        doc.sections.append(section)
+    for s in doc.sections:
+        _stamp(s)
+        for t in s.topics:
+            _stamp(t)

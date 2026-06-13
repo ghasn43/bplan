@@ -47,11 +47,20 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
     } catch {
       /* non-JSON error body (e.g. dev-proxy error page when backend is down) */
     }
-    const apiDetail = (detail as { detail?: string } | null)?.detail
+    const apiDetail = (detail as { detail?: unknown } | null)?.detail
     let message: string
     if (typeof apiDetail === 'string') {
       // A real, structured error from FastAPI.
       message = apiDetail
+    } else if (Array.isArray(apiDetail)) {
+      // FastAPI 422 validation errors: surface the offending field(s).
+      message = apiDetail
+        .map((e: { loc?: unknown[]; msg?: string }) => {
+          const field = Array.isArray(e.loc) ? e.loc.filter((p) => p !== 'body').join('.') : ''
+          return field ? `${field}: ${e.msg}` : e.msg
+        })
+        .filter(Boolean)
+        .join('; ') || `Validation failed (${res.status})`
     } else if (res.status >= 500) {
       // 5xx with no JSON body = the Vite proxy couldn't reach the backend.
       message = `${BACKEND_DOWN_HINT} (HTTP ${res.status})`

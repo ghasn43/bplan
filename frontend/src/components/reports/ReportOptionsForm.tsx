@@ -18,6 +18,14 @@ const TOGGLES: { key: keyof ReportRequest; label: string; hint: string }[] = [
   { key: 'include_appendices', label: 'Appendices', hint: 'Detailed schedules and registers' },
 ]
 
+const TEXT_PLAN_TOGGLES: { key: keyof ReportRequest; label: string; hint: string }[] = [
+  { key: 'include_text_plan', label: 'Written business plan', hint: 'Include the narrative sections and topics' },
+  { key: 'text_plan_include_completed', label: 'Completed topics', hint: 'Include topics marked completed' },
+  { key: 'text_plan_include_drafts', label: 'Draft topics', hint: 'Include draft / in-progress topics' },
+  { key: 'text_plan_include_images', label: 'Topic images', hint: 'Include images inserted in topics' },
+  { key: 'text_plan_include_guidance', label: 'Section guidance', hint: 'Include writing guidance (off by default)' },
+]
+
 export function ReportOptionsForm({
   value,
   onChange,
@@ -52,7 +60,7 @@ export function ReportOptionsForm({
       </div>
 
       <div className="field">
-        <span className="field__label">Include in report</span>
+        <span className="field__label">Financial study</span>
         <div className="row row--wrap" style={{ gap: 18 }}>
           {TOGGLES.map((t) => (
             <label key={t.key} className="row" style={{ gap: 8, alignItems: 'center', cursor: 'pointer' }} title={t.hint}>
@@ -64,6 +72,31 @@ export function ReportOptionsForm({
               <span style={{ fontSize: 13.5 }}>{t.label}</span>
             </label>
           ))}
+        </div>
+      </div>
+
+      <div className="field">
+        <span className="field__label">Written business plan</span>
+        <div className="row row--wrap" style={{ gap: 18 }}>
+          {TEXT_PLAN_TOGGLES.map((t) => {
+            const disabled = t.key !== 'include_text_plan' && !value.include_text_plan
+            return (
+              <label
+                key={t.key}
+                className="row"
+                style={{ gap: 8, alignItems: 'center', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1 }}
+                title={t.hint}
+              >
+                <input
+                  type="checkbox"
+                  disabled={disabled}
+                  checked={value[t.key] as boolean}
+                  onChange={(e) => set({ [t.key]: e.target.checked } as Partial<ReportRequest>)}
+                />
+                <span style={{ fontSize: 13.5 }}>{t.label}</span>
+              </label>
+            )
+          })}
         </div>
       </div>
     </div>

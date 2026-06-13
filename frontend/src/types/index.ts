@@ -336,7 +336,11 @@ export interface BusinessPlanProject extends EntityBase {
 export interface ProjectSummary {
   id: string
   name: string
+  company_name?: string | null
+  project_name?: string | null
   business_name?: string | null
+  industry?: string | null
+  country?: string | null
   currency?: string | null
   projection_period?: string | null
   completion_percent: number

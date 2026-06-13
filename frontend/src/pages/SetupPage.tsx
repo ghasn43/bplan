@@ -15,8 +15,16 @@ const config: FormConfig = [
     subtitle: 'Who the plan is for and what the business does.',
     icon: '◧',
     fields: [
-      { name: 'business_name', label: 'Business Name', kind: 'text', required: true, placeholder: 'e.g. Acme Technologies' },
-      { name: 'project_name', label: 'Project / Plan Name', kind: 'text', placeholder: 'e.g. 2026 Growth Plan' },
+      {
+        name: 'business_name', label: 'Company Name', kind: 'text', required: true,
+        placeholder: 'e.g. AquaPure Smart Filters FZE',
+        help: 'The legal or trading name of the business (the reporting entity).',
+      },
+      {
+        name: 'project_name', label: 'Project Name', kind: 'text', required: true,
+        placeholder: 'e.g. Dubai Smart Water Filtration Expansion Plan',
+        help: 'The name of this specific business plan, expansion, investment case, or financial study.',
+      },
       { name: 'business_description', label: 'Business Description', kind: 'textarea', span: 2, placeholder: 'A short description of the business, its customers, and value proposition.' },
       { name: 'industry', label: 'Industry / Sector', kind: 'text', placeholder: 'e.g. Software / Fintech' },
       { name: 'business_model', label: 'Business Model', kind: 'select', options: businessModelOptions, placeholder: 'Select a model' },

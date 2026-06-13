@@ -23,6 +23,11 @@ const DEFAULT_REQUEST: ReportRequest = {
   include_assumptions: true,
   include_warnings: true,
   output_format: 'docx',
+  include_text_plan: true,
+  text_plan_include_completed: true,
+  text_plan_include_drafts: true,
+  text_plan_include_images: true,
+  text_plan_include_guidance: false,
 }
 
 export function ReportGeneratorPanel({ projectId }: { projectId: string }) {

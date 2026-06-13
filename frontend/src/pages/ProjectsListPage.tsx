@@ -1,5 +1,12 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useDeleteProject, useDemoPreview, useLoadDemo, useProjects } from '@/api/hooks'
+import {
+  useDeleteProject,
+  useDemoPreview,
+  useLoadDemo,
+  useProjects,
+  useUpdateCompanyName,
+} from '@/api/hooks'
 import { LoadingScreen, Spinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ProgressBar } from '@/components/ui/Progress'
@@ -84,10 +91,11 @@ export function ProjectsListPage() {
                 tabIndex={0}
               >
                 <div className="row row--between" style={{ alignItems: 'flex-start' }}>
-                  <div>
-                    <div className="project-card__name">{p.business_name || p.name}</div>
-                    <div className="muted" style={{ fontSize: 12.5 }}>{p.name}</div>
-                  </div>
+                  <CompanyTitle
+                    projectId={p.id}
+                    companyName={p.company_name || p.business_name || p.name}
+                    projectName={p.project_name || ''}
+                  />
                   <button
                     className="icon-btn icon-btn--danger"
                     onClick={(e) => {
@@ -101,7 +109,13 @@ export function ProjectsListPage() {
                   </button>
                 </div>
 
-                <div className="row row--wrap" style={{ gap: 6, margin: '14px 0' }}>
+                {(p.industry || p.country) && (
+                  <div className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+                    {[p.industry, p.country].filter(Boolean).join(' · ')}
+                  </div>
+                )}
+
+                <div className="row row--wrap" style={{ gap: 6, margin: '12px 0' }}>
                   {p.currency && <Badge tone="blue">{p.currency}</Badge>}
                   {p.projection_period && (
                     <Badge tone="neutral">{labelFor(projectionPeriodOptions, p.projection_period)}</Badge>
@@ -124,6 +138,81 @@ export function ProjectsListPage() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function CompanyTitle({
+  projectId,
+  companyName,
+  projectName,
+}: {
+  projectId: string
+  companyName: string
+  projectName: string
+}) {
+  const rename = useUpdateCompanyName()
+  const { notify } = useToast()
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(companyName)
+
+  const start = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setValue(companyName)
+    setEditing(true)
+  }
+
+  const commit = () => {
+    const name = value.trim()
+    setEditing(false)
+    if (!name || name === companyName) return
+    rename.mutate(
+      { projectId, businessName: name },
+      {
+        onSuccess: () => notify('Company name updated'),
+        onError: (e) => notify((e as Error).message || 'Rename failed', 'error'),
+      },
+    )
+  }
+
+  if (editing) {
+    return (
+      <div onClick={(e) => e.stopPropagation()} style={{ flex: 1, minWidth: 0 }}>
+        <input
+          className="project-card__name-input"
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit()
+            if (e.key === 'Escape') setEditing(false)
+          }}
+          aria-label="Company name"
+        />
+        {projectName && <div className="project-card__project">{projectName}</div>}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="project-card__name-row">
+        <span className="project-card__name" title={companyName}>{companyName}</span>
+        <button
+          className="project-card__edit"
+          title="Rename company"
+          onClick={start}
+          aria-label="Rename company"
+        >
+          ✎
+        </button>
+      </div>
+      {projectName ? (
+        <div className="project-card__project" title={projectName}>{projectName}</div>
+      ) : (
+        <div className="project-card__project project-card__project--missing">Project name not set</div>
+      )}
     </div>
   )
 }

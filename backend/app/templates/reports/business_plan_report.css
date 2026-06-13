@@ -96,7 +96,37 @@ ul { margin: 4pt 0; padding-left: 16pt; }
 li { margin: 2pt 0; }
 .avoid-break { page-break-inside: avoid; }
 
+/* financial statement headers (reporting entity vs study) */
+.stmt-head { margin: 12pt 0 4pt; page-break-after: avoid; }
+.stmt-head__company { font-size: 13pt; font-weight: 700; color: #1e293b; }
+.stmt-head__title { font-size: 11pt; font-weight: 700; color: #2563eb; }
+.stmt-head__project { font-size: 9.5pt; font-style: italic; color: #64748b; }
+.stmt-head__when { font-size: 8.5pt; color: #64748b; }
+
 /* charts */
 .chart { margin: 8pt 0 14pt; text-align: center; page-break-inside: avoid; }
 .chart img { width: 100%; max-width: 460pt; height: auto; }
 .chart__insight { font-size: 8.5pt; color: #64748b; font-style: italic; margin-top: 3pt; }
+
+/* textual business plan rich text */
+.richtext { font-size: 10pt; color: #333d4f; line-height: 1.5; margin: 4pt 0 8pt; }
+.richtext p { margin: 0 0 6pt; }
+.richtext h2 { font-size: 11.5pt; color: #1e293b; margin: 8pt 0 4pt; }
+.richtext h3 { font-size: 10.5pt; color: #334155; margin: 6pt 0 3pt; }
+.richtext ul, .richtext ol { margin: 4pt 0 8pt; padding-left: 18pt; }
+.richtext li { margin: 2pt 0; }
+.richtext blockquote { margin: 6pt 0; padding: 4pt 10pt; border-left: 2.5pt solid #cbd5e1;
+  color: #475569; font-style: italic; }
+.richtext a { color: #2563eb; text-decoration: none; }
+.richtext strong { font-weight: 700; }
+.richtext hr { border: none; border-top: 0.75pt solid #e2e8f0; margin: 8pt 0; }
+
+/* inline topic images (placement comes from the rich-text node) */
+.richtext .topic-image { margin: 14pt auto; page-break-inside: avoid; break-inside: avoid; }
+.richtext .topic-image img { display: block; width: 100%; height: auto; border: 0.5pt solid #dbe3ec; border-radius: 4pt; }
+.richtext .topic-image figcaption { margin-top: 6pt; text-align: center; color: #64748b; font-size: 9pt; font-style: italic; }
+.richtext .topic-image.align-left { margin-left: 0; margin-right: auto; }
+.richtext .topic-image.align-center { margin-left: auto; margin-right: auto; }
+.richtext .topic-image.align-right { margin-left: auto; margin-right: 0; }
+.richtext .topic-image.align-full_width { width: 100% !important; }
+.topic-image-missing { color: #b45309; font-style: italic; font-size: 9pt; margin: 8pt 0; }

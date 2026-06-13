@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react'
-import { useForm, type FieldValues } from 'react-hook-form'
+import { useSearchParams } from 'react-router-dom'
+import { useForm, type FieldValues, type Path } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { PageHeader } from '@/components/PageHeader'
 import { SaveBar } from '@/components/SaveBar'
@@ -39,24 +40,46 @@ export function SingletonFormPage<T extends object>({
   const save = useSaveSingletonSection<Record<string, unknown>>(projectId, sectionKey)
   const { notify } = useToast()
 
+  const [searchParams] = useSearchParams()
   const form = useForm<FieldValues>({
     resolver: zodResolver(buildZodSchema(config)),
     defaultValues: defaultsFromConfig(config),
   })
-  const { control, handleSubmit, reset, watch, formState } = form
+  const { control, handleSubmit, reset, watch, formState, setFocus } = form
 
-  // Populate the form once data arrives.
+  // Populate the form when data arrives — but never clobber unsaved edits.
+  // Background refetches (e.g. on window focus) must not reset what the user is
+  // currently typing, otherwise the edit is lost and the stale value is saved.
   useEffect(() => {
     if (data === undefined) return
+    if (formState.isDirty) return
     const base = defaultsFromConfig(config)
     const mapped = toForm ? toForm(data) : (data as unknown as FieldValues | null)
     reset({ ...base, ...(mapped ?? {}) })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data])
 
+  // Focus a specific field when navigated to with ?focus=<field> (e.g. the
+  // pencil next to the company name in the workspace header).
+  useEffect(() => {
+    if (isLoading) return
+    const focus = searchParams.get('focus')
+    if (!focus) return
+    const field = focus === 'company_name' ? 'business_name' : focus
+    const exists = config.some((s) => s.fields.some((f) => f.name === field))
+    if (exists) setTimeout(() => setFocus(field as Path<FieldValues>), 50)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, searchParams])
+
   const onSubmit = handleSubmit(
     (values) => {
-      save.mutate(values, {
+      // Empty optional <select> fields submit as "" which fail backend enum
+      // validation (422). Drop empty-string / undefined values so optional enums
+      // become null and defaulted enums fall back to their server default.
+      const cleaned = Object.fromEntries(
+        Object.entries(values).filter(([, v]) => v !== '' && v !== undefined),
+      )
+      save.mutate(cleaned, {
         onSuccess: () => {
           notify('Changes saved')
           reset(values) // clears dirty state

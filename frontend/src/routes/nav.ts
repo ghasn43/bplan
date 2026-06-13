@@ -16,6 +16,7 @@ export interface NavPage {
     | 'People & Operations'
     | 'Capital & Compliance'
     | 'Planning'
+    | 'Written Plan'
     | 'Financial Statements'
     | 'Reporting'
   icon: string
@@ -36,6 +37,7 @@ export const NAV_PAGES: NavPage[] = [
   { slug: 'scenarios', label: 'Scenarios', subtitle: 'Base, conservative, and optimistic cases', sectionKey: 'scenarios', group: 'Planning', icon: '⊟' },
   { slug: 'kpis', label: 'KPIs & Targets', subtitle: 'Management and investor metrics', sectionKey: 'kpis', group: 'Planning', icon: '⊡' },
   { slug: 'review', label: 'Review & Completion', subtitle: 'Summary before generating statements', sectionKey: null, group: 'Planning', icon: '✓' },
+  { slug: 'text-builder', label: 'Text Builder', subtitle: 'Write the narrative business plan', sectionKey: null, group: 'Written Plan', icon: '✎' },
   { slug: 'income-statement', label: 'Income Statement', subtitle: 'IFRS Statement of Profit or Loss', sectionKey: null, group: 'Financial Statements', icon: '∑' },
   { slug: 'balance-sheet', label: 'Balance Sheet', subtitle: 'IFRS Statement of Financial Position', sectionKey: null, group: 'Financial Statements', icon: '⚖' },
   { slug: 'cash-flow', label: 'Cash Flow Statement', subtitle: 'IFRS Statement of Cash Flows (indirect)', sectionKey: null, group: 'Financial Statements', icon: '◷' },
@@ -49,6 +51,7 @@ export const NAV_GROUPS = [
   'People & Operations',
   'Capital & Compliance',
   'Planning',
+  'Written Plan',
   'Financial Statements',
   'Reporting',
 ] as const

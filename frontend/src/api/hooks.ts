@@ -43,6 +43,19 @@ export function useDeleteProject() {
   })
 }
 
+export function useUpdateCompanyName() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ projectId, businessName }: { projectId: string; businessName: string }) =>
+      api.put(`/projects/${projectId}/company-name`, { business_name: businessName }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['projects'] })
+      qc.invalidateQueries({ queryKey: ['project', vars.projectId] })
+      qc.invalidateQueries({ queryKey: ['section', vars.projectId, 'setup'] })
+    },
+  })
+}
+
 export function useCompletion(projectId: string | undefined) {
   return useQuery({
     queryKey: ['completion', projectId],
@@ -123,8 +136,11 @@ export const exportJsonUrl = (projectId: string) =>
 export interface DemoPreview {
   id: string
   name: string
+  company_name: string
+  project_name: string
   business_name: string
   subtitle: string
+  description?: string
   tags: string[]
   currency: string
   projection_period: string | null

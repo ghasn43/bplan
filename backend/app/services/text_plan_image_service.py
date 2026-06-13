@@ -32,12 +32,38 @@ def _topic_dir(project_id: str) -> Path:
     return d
 
 
-def image_url(project_id: str, topic_id: str, image_id: str) -> str:
-    return f"/api/projects/{project_id}/text-plan/topics/{topic_id}/images/{image_id}/file"
+def image_url(project_id: str, image_id: str) -> str:
+    """Topic-independent URL so the rich-text node keeps working when a topic
+    is moved/duplicated. Resolved by :func:`find_image`."""
+    return f"/api/projects/{project_id}/text-plan/images/{image_id}/file"
 
 
 def image_file_path(project_id: str, file_name: str) -> Path:
     return _topic_dir(project_id) / file_name
+
+
+def find_image(project, image_id: str):
+    """Return (topic, image) for an image id anywhere in the project, or (None, None)."""
+    for section in project.text_plan.sections:
+        for topic in section.topics:
+            for img in topic.images:
+                if img.id == image_id:
+                    return topic, img
+    return None, None
+
+
+def build_image_index(project) -> dict:
+    """image_id -> {file_path, mime_type, caption, alignment, width_pct} for all images."""
+    index: dict[str, dict] = {}
+    for section in project.text_plan.sections:
+        for topic in section.topics:
+            for img in topic.images:
+                index[img.id] = {
+                    "file_path": img.file_path, "mime_type": img.mime_type,
+                    "caption": img.caption, "alignment": img.alignment,
+                    "width_pct": img.display_width_percentage, "alt_text": img.alt_text,
+                }
+    return index
 
 
 def upload_topic_image(storage: StorageBackend, project_id: str, topic_id: str,
@@ -66,7 +92,7 @@ def upload_topic_image(storage: StorageBackend, project_id: str, topic_id: str,
 
     img = TextPlanImage(
         id=image_id, file_name=file_name, original_file_name=original_file_name,
-        file_path=str(path), url=image_url(project_id, topic_id, image_id),
+        file_path=str(path), url=image_url(project_id, image_id),
         mime_type=content_type, file_size=len(content), width=width, height=height,
         order_index=len(topic.images),
     )

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from .base import EntityBase
 from .enums import (
@@ -35,6 +35,19 @@ class ProjectSetup(EntityBase):
     tax_jurisdiction: str | None = Field(default=None, max_length=120)
     reporting_standard: ReportingStandard = ReportingStandard.MANAGEMENT
     scenario_mode_enabled: bool = False
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_blanks(cls, data):
+        """Treat empty-string fields as 'not provided'.
+
+        Empty optional <select> inputs post ``""`` which is not a valid enum
+        member; dropping them lets optional enums become ``None`` and
+        defaulted enums (frequency, reporting standard) fall back to their
+        default instead of raising HTTP 422."""
+        if isinstance(data, dict):
+            return {k: v for k, v in data.items() if v != ""}
+        return data
 
     @field_validator("currency")
     @classmethod

@@ -56,11 +56,16 @@ def aquapure_preview(storage: StorageBackend) -> dict:
         + sum(loan.amount for loan in project.financing.loans)
         + sum(grant.amount for grant in project.financing.grants)
     )
+    setup = project.setup
     return {
         "id": DEMO_PROJECT_ID,
         "name": project.name,
-        "business_name": project.setup.business_name if project.setup else project.name,
+        # Company and project names are independent — no fallback between them.
+        "company_name": setup.business_name if setup else "",
+        "project_name": setup.project_name if setup else "",
+        "business_name": setup.business_name if setup else "",  # legacy alias
         "subtitle": DEMO_SUBTITLE,
+        "description": DEMO_SUBTITLE,
         "tags": DEMO_TAGS,
         "currency": project.setup.currency if project.setup else "AED",
         "projection_period": project.setup.projection_period.value if project.setup else None,

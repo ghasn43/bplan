@@ -17,6 +17,10 @@ class ProjectCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=200)
 
 
+class CompanyNameUpdate(BaseModel):
+    business_name: str = Field(..., min_length=1, max_length=200)
+
+
 @router.get("", response_model=list[ProjectSummary])
 def list_projects(service: ProjectService = Depends(get_service)):
     return service.list_summaries()
@@ -43,6 +47,20 @@ def replace_project(
         return service.replace(project_id, payload)
     except NotFoundError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Project {project_id!r} not found")
+
+
+@router.put("/{project_id}/company-name", response_model=ProjectSummary)
+def update_company_name(
+    project_id: str,
+    payload: CompanyNameUpdate,
+    service: ProjectService = Depends(get_service),
+):
+    """Rename the company/business name (the project's main title)."""
+    try:
+        service.update_business_name(project_id, payload.business_name.strip())
+    except NotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Project {project_id!r} not found")
+    return next((s for s in service.list_summaries() if s.id == project_id))
 
 
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)

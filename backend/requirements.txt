@@ -1,3 +1,4 @@
+streamlit
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.6
 pydantic>=2.10.0
@@ -9,7 +10,6 @@ matplotlib>=3.7.0
 # falls back to a styled HTML report if WeasyPrint's native libs are missing.
 weasyprint>=60.0
 fastapi
-streamlit
 fastapi
 uvicorn
 python-multipart

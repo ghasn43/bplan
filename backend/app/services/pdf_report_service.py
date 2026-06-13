@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import html
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +29,74 @@ def _chart_img(rendered) -> str:
     b64 = base64.b64encode(rendered["png"]).decode("ascii")
     cap = f'<div class="chart__insight">{_e(rendered["insight"])}</div>' if rendered.get("insight") else ""
     return f'<figure class="chart"><img src="data:image/png;base64,{b64}" alt="{_e(rendered["title"])}" />{cap}</figure>'
+
+
+def _img_attrs(tag: str) -> dict:
+    return {m.group(1).lower(): m.group(3) for m in re.finditer(r'([\w:-]+)\s*=\s*(["\'])(.*?)\2', tag)}
+
+
+def _data_uri(file_path: str, mime: str) -> str | None:
+    from pathlib import Path
+    try:
+        data = Path(file_path).read_bytes()
+    except Exception:
+        return None
+    return f"data:{mime or 'image/png'};base64,{base64.b64encode(data).decode('ascii')}"
+
+
+def _inline_images(content_html: str, image_index: dict) -> str:
+    """Rewrite each inline TipTap <img data-image-id> into a print-ready
+    <figure class="topic-image align-..."> with a base64 data URI, embedded at
+    its exact position. Missing files become a visible (non-fatal) placeholder."""
+    def repl(match: re.Match) -> str:
+        attrs = _img_attrs(match.group(0))
+        image_id = attrs.get("data-image-id")
+        meta = image_index.get(image_id) if image_id else None
+        align = (attrs.get("data-alignment") or (meta or {}).get("alignment") or "center").lower()
+        caption = attrs.get("data-caption") or (meta or {}).get("caption") or ""
+        try:
+            pct = int(float(attrs.get("data-width") or (meta or {}).get("width_pct") or 80))
+        except (TypeError, ValueError):
+            pct = 80
+        if align == "full_width":
+            pct = 100
+        pct = min(max(pct, 10), 100)
+        uri = _data_uri((meta or {}).get("file_path", ""), (meta or {}).get("mime_type", "image/png")) if meta else None
+        if not uri:
+            return '<div class="topic-image-missing">[Image unavailable]</div>'
+        cap = f'<figcaption>{_e(caption)}</figcaption>' if caption else ""
+        alt = _e(attrs.get("alt") or (meta or {}).get("alt_text") or "")
+        return (f'<figure class="topic-image align-{_e(align)}" style="width:{pct}%">'
+                f'<img src="{uri}" alt="{alt}" />{cap}</figure>')
+
+    return re.sub(r"<img\b[^>]*>", repl, content_html or "")
+
+
+def _sanitize_richtext(html_str: str) -> str:
+    return re.sub(r"<script.*?</script>", "", html_str or "", flags=re.S | re.I)
+
+
+def _text_plan_html(ctx) -> str:
+    tp = ctx.get("text_plan") or {}
+    if not tp.get("has_content"):
+        return ""
+    image_index = tp.get("image_index") or {}
+    out = []
+    for sec in tp["sections"]:
+        out.append(f'<h1 class="section">{_e(sec["title"])}</h1>')
+        if sec.get("description"):
+            out.append(f'<p class="note">{_e(sec["description"])}</p>')
+        for topic in sec["topics"]:
+            out.append(f'<h2>{_e(topic["title"])}</h2>')
+            if topic.get("guidance"):
+                out.append(f'<div class="warn warn--info"><b>Guidance</b> &nbsp;{_e(topic["guidance"])}</div>')
+            content = (topic.get("content_html") or "").strip()
+            if content:
+                body = _inline_images(_sanitize_richtext(content), image_index)
+            else:
+                body = f'<p>{_e(topic.get("plain_text") or "")}</p>'
+            out.append(f'<div class="richtext">{body}</div>')
+    return "".join(out)
 
 
 # --------------------------------------------------------------------------
@@ -146,6 +215,9 @@ def render_report_html(ctx) -> str:
     <h2>Key projected highlights</h2>{_kpi_cards(ctx["highlights"])}
     {f'<h2>Analytical commentary</h2><ul>{insights}</ul>' if insights else ''}""")
 
+    # textual business plan (written narrative) — before the financial study
+    parts.append(_text_plan_html(ctx))
+
     # 2 business overview
     parts.append(f'<h1 class="section">2. Business Overview</h1>{_kv(ctx["overview"])}')
 
@@ -184,13 +256,21 @@ def render_report_html(ctx) -> str:
         <h2>KPI targets</h2>{_kv(ctx["kpis"])}""")
 
     # 8 statements — printed on landscape pages (they are wide)
+    period = m["period_range"]
+
+    def _stmt_head(title, when):
+        proj = f'<div class="stmt-head__project">{_e(m["project_name"])}</div>' if m.get("project_name") else ""
+        return (f'<div class="stmt-head"><div class="stmt-head__company">{_e(m["company"])}</div>'
+                f'<div class="stmt-head__title">{_e(title)}</div>{proj}'
+                f'<div class="stmt-head__when">{_e(when)}</div></div>')
+
     parts.append(f"""
     <section class="landscape-section">
     <h1 class="section">8. Financial Statements</h1>
     <p class="note">All figures in {_e(cur)}. Negative amounts are shown in parentheses; a dash indicates a nil balance.</p>
-    <h2>Statement of Profit or Loss</h2>{_fin_table(P, ctx["income_statement"]["rows"], cur)}
-    <h2>Statement of Financial Position</h2>{_fin_table(P, ctx["balance_sheet"]["rows"], cur)}
-    <h2>Statement of Cash Flows (indirect method)</h2>{_fin_table(P, ctx["cash_flow"]["rows"], cur)}
+    {_stmt_head("Statement of Profit or Loss", f"For the projected period {period}")}{_fin_table(P, ctx["income_statement"]["rows"], cur)}
+    {_stmt_head("Statement of Financial Position", f"As at the end of the projected period ({period})")}{_fin_table(P, ctx["balance_sheet"]["rows"], cur)}
+    {_stmt_head("Statement of Cash Flows (indirect method)", f"For the projected period {period}")}{_fin_table(P, ctx["cash_flow"]["rows"], cur)}
     </section>""")
 
     # 9 analysis

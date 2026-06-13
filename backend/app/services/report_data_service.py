@@ -315,8 +315,10 @@ def build_report_context(project: BusinessPlanProject, scenario: str, view: str,
         currency=currency, scenario=scenario, scenario_label=SCENARIO_LABELS.get(scenario, scenario.title()),
         view=vv, periods=periods, app_name="Business Plan Studio",
         meta=dict(
-            company=setup.business_name if setup else project.name,
-            project_name=setup.project_name if setup else project.name,
+            # Company (legal/reporting entity) and project (study title) are
+            # independent — never substitute one for the other.
+            company=(setup.business_name if setup and setup.business_name else project.name),
+            project_name=(setup.project_name if setup else ""),
             title="Business Plan Financial Projection Report",
             subtitle=f"{_words(years)}-Year Projected Financial Study",
             period_range=f"{start_year}–{end_year}", currency=currency,
@@ -358,14 +360,27 @@ def build_report_context(project: BusinessPlanProject, scenario: str, view: str,
 
 
 def collect_text_plan(project, options) -> dict:
-    """Collect the written business plan for the report (filtered by options)."""
+    """Collect the written business plan for the report (filtered by options).
+
+    Images are inline rich-text nodes inside each topic's ``content_html`` — the
+    single source of truth for placement. We build an ``image_index`` (imageId ->
+    file metadata) so the Word/PDF generators can embed each image at its node
+    position. ``include_text_plan_images=False`` strips the image nodes instead.
+    """
     if not getattr(options, "include_text_plan", True):
-        return {"sections": [], "has_content": False}
+        return {"sections": [], "has_content": False, "image_index": {}}
+
+    from . import text_plan_image_service as imgsvc
+    from . import text_plan_service as tps
 
     inc_completed = getattr(options, "text_plan_include_completed", True)
     inc_drafts = getattr(options, "text_plan_include_drafts", True)
     inc_images = getattr(options, "text_plan_include_images", True)
     inc_guidance = getattr(options, "text_plan_include_guidance", False)
+
+    # Migrate legacy attached images into content in-memory (idempotent, not persisted).
+    tps.migrate_document(project.id, project.text_plan)
+    image_index = imgsvc.build_image_index(project) if inc_images else {}
 
     def topic_allowed(t):
         if not t.include_in_report:
@@ -374,8 +389,10 @@ def collect_text_plan(project, options) -> dict:
             return inc_completed
         if t.status in ("draft", "in_review"):
             return inc_drafts
-        # not_started: include only if it has written content and drafts are allowed
         return inc_drafts and bool(t.plain_text.strip())
+
+    def strip_images(html: str) -> str:
+        return re.sub(r"<img\b[^>]*>", "", html or "")
 
     sections = []
     for s in project.text_plan.sections:
@@ -385,27 +402,19 @@ def collect_text_plan(project, options) -> dict:
         for t in sorted(s.topics, key=lambda x: x.order_index):
             if not topic_allowed(t):
                 continue
-            images = []
-            if inc_images:
-                for img in sorted(t.images, key=lambda x: x.order_index):
-                    p = Path(img.file_path)
-                    if p.exists():
-                        images.append({
-                            "path": str(p), "caption": img.caption, "alt_text": img.alt_text,
-                            "alignment": img.alignment, "width_pct": img.display_width_percentage,
-                            "mime_type": img.mime_type,
-                        })
+            content_html = t.content_html or ""
+            if not inc_images:
+                content_html = strip_images(content_html)
             topics.append({
-                "title": t.title, "content_html": t.content_html, "plain_text": t.plain_text,
+                "title": t.title, "content_html": content_html, "plain_text": t.plain_text,
                 "status": t.status, "guidance": t.guidance_text if inc_guidance else "",
-                "images": images,
             })
         if topics:
             sections.append({
                 "title": s.title, "subtitle": s.subtitle, "description": s.description,
                 "page_break_before": s.page_break_before, "topics": topics,
             })
-    return {"sections": sections, "has_content": bool(sections),
+    return {"sections": sections, "has_content": bool(sections), "image_index": image_index,
             "title": project.text_plan.title or "Business Plan"}
 
 
@@ -544,7 +553,8 @@ def build_report_preview(project, scenario, view, options):
 
     return ReportPreview(
         project_id=project.id, title="Business Plan Financial Projection Report",
-        company=setup.business_name if setup else project.name, project_name=setup.project_name if setup else None,
+        company=(setup.business_name if setup and setup.business_name else project.name),
+        project_name=(setup.project_name if setup else None),
         scenario=scenario, scenario_label=SCENARIO_LABELS.get(scenario, scenario.title()), view=view,
         currency=currency, period_range=f"{start_year}–{start_year + years - 1}",
         prepared_date=date.today().strftime("%d %B %Y"), prepared_for=PREPARED_FOR.get(options.report_style, "Investors"),

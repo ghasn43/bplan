@@ -5,6 +5,7 @@ from storage, mutate ``project.text_plan``, persist, and return the result.
 """
 from __future__ import annotations
 
+import html as _html
 import re
 
 from ..models import BusinessPlanProject
@@ -91,10 +92,61 @@ def _find_topic(doc: TextPlanDocument, topic_id: str):
 
 
 # --------------------------------------------------------------------------
+# inline image migration (legacy attached images -> rich-text image nodes)
+# --------------------------------------------------------------------------
+def image_node_html(project_id: str, img) -> str:
+    """Render a TextPlanImage as an inline rich-text <img> node (data-* attrs)."""
+    src = img.url or f"/api/projects/{project_id}/text-plan/images/{img.id}/file"
+    return (
+        f'<img src="{_html.escape(src)}" data-image-id="{_html.escape(img.id)}" '
+        f'data-caption="{_html.escape(img.caption or "")}" '
+        f'data-alignment="{_html.escape(img.alignment or "center")}" '
+        f'data-width="{int(img.display_width_percentage or 80)}" '
+        f'alt="{_html.escape(img.alt_text or "")}" '
+        f'title="{_html.escape(img.caption or "")}">'
+    )
+
+
+def migrate_topic_images_into_content(project_id: str, topic) -> bool:
+    """Ensure every attached image is referenced inside the topic content.
+
+    Idempotent: only appends image nodes whose ``imageId`` is not already
+    present in the content HTML. Returns True if the content changed.
+    """
+    if not topic.images:
+        return False
+    html = topic.content_html or ""
+    additions = []
+    for img in sorted(topic.images, key=lambda i: i.order_index):
+        if f'data-image-id="{img.id}"' in html or f"data-image-id='{img.id}'" in html:
+            continue
+        additions.append(image_node_html(project_id, img))
+    if not additions:
+        return False
+    topic.content_html = html + "".join(additions)
+    # Drop stale JSON so the editor re-derives from the migrated HTML.
+    topic.content_json = None
+    _recompute_topic_metrics(topic)
+    return True
+
+
+def migrate_document(project_id: str, doc: TextPlanDocument) -> bool:
+    changed = False
+    for section in doc.sections:
+        for topic in section.topics:
+            if migrate_topic_images_into_content(project_id, topic):
+                changed = True
+    return changed
+
+
+# --------------------------------------------------------------------------
 # read
 # --------------------------------------------------------------------------
 def get_text_plan(storage: StorageBackend, project_id: str) -> TextPlanDocument:
-    return _load(storage, project_id).text_plan
+    project = _load(storage, project_id)
+    if migrate_document(project_id, project.text_plan):
+        _save(storage, project)
+    return project.text_plan
 
 
 # --------------------------------------------------------------------------

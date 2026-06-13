@@ -30,15 +30,18 @@ class ProjectService:
         summaries = []
         for p in self.storage.list_projects():
             completion = build_completion_report(p)
+            setup = p.setup
             summaries.append(
                 ProjectSummary(
                     id=p.id,
                     name=p.name,
-                    business_name=p.setup.business_name if p.setup else None,
-                    currency=p.setup.currency if p.setup else None,
-                    projection_period=(
-                        p.setup.projection_period.value if p.setup else None
-                    ),
+                    company_name=setup.business_name if setup else None,
+                    project_name=setup.project_name if setup else None,
+                    business_name=setup.business_name if setup else None,
+                    industry=setup.industry if setup else None,
+                    country=setup.country if setup else None,
+                    currency=setup.currency if setup else None,
+                    projection_period=(setup.projection_period.value if setup else None),
                     completion_percent=completion.completion_percent,
                     created_at=p.created_at,
                     updated_at=p.updated_at,
@@ -62,6 +65,20 @@ class ProjectService:
     def update_name(self, project_id: str, name: str) -> BusinessPlanProject:
         project = self.storage.get_project(project_id)
         project.name = name
+        project.touch()
+        return self.storage.save_project(project)
+
+    def update_business_name(self, project_id: str, business_name: str) -> BusinessPlanProject:
+        """Set the company/business name shown as the project's main title.
+
+        Canonical home is ``setup.business_name``. If setup hasn't been created
+        yet, fall back to the project ``name`` so the title is still editable."""
+        project = self.storage.get_project(project_id)
+        if project.setup is not None:
+            project.setup.business_name = business_name
+            project.setup.touch()
+        else:
+            project.name = business_name
         project.touch()
         return self.storage.save_project(project)
 

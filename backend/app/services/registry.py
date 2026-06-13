@@ -65,7 +65,8 @@ SINGLETON_SECTIONS: dict[str, SectionSpec] = {
         SectionSpec(
             "setup", "setup", "Project Setup", ProjectSetup, False,
             required=True,
-            required_fields=("business_name", "currency", "projection_period", "projection_start_date"),
+            required_fields=("business_name", "project_name", "currency",
+                             "projection_period", "projection_start_date"),
         ),
         SectionSpec("working-capital", "working_capital", "Working Capital", WorkingCapitalAssumption, False),
         SectionSpec("financing", "financing", "Financing", Financing, False),

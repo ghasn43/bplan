@@ -49,11 +49,21 @@ class BusinessPlanProject(TimestampedModel):
 
 
 class ProjectSummary(BaseModel):
-    """Lightweight projection-list item (avoids shipping the full document)."""
+    """Lightweight projection-list item (avoids shipping the full document).
+
+    ``company_name`` and ``project_name`` are the two independent identity
+    fields. ``name`` (the legacy top-level plan name) and ``business_name`` are
+    retained for backward compatibility but the UI should prefer the explicit
+    company/project fields.
+    """
 
     id: str
     name: str
-    business_name: str | None = None
+    company_name: str | None = None
+    project_name: str | None = None
+    business_name: str | None = None      # legacy alias of company_name
+    industry: str | None = None
+    country: str | None = None
     currency: str | None = None
     projection_period: str | None = None
     completion_percent: int = 0
